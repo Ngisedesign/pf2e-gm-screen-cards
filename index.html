@@ -495,6 +495,41 @@
       background: #2a3a5a;
       outline: 2px solid #e94560;
     }
+
+    /* Placeholder for monsters without images */
+    .no-image {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #e8e4dc 0%, #d4d0c6 100%);
+      border: 3px solid #7b2d3f;
+      border-radius: 8px;
+    }
+
+    .creature-silhouette {
+      width: 120px;
+      height: 150px;
+      background: #7b2d3f;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M50 0 C60 10 75 15 80 25 C85 40 82 55 78 65 C85 75 90 85 88 95 C85 105 75 115 60 118 C55 119 45 119 40 118 C25 115 15 105 12 95 C10 85 15 75 22 65 C18 55 15 40 20 25 C25 15 40 10 50 0'/%3E%3C/svg%3E");
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M50 0 C60 10 75 15 80 25 C85 40 82 55 78 65 C85 75 90 85 88 95 C85 105 75 115 60 118 C55 119 45 119 40 118 C25 115 15 105 12 95 C10 85 15 75 22 65 C18 55 15 40 20 25 C25 15 40 10 50 0'/%3E%3C/svg%3E");
+      mask-size: contain;
+      -webkit-mask-size: contain;
+      mask-repeat: no-repeat;
+      -webkit-mask-repeat: no-repeat;
+      opacity: 0.3;
+    }
+
+    .no-image-name {
+      font-size: 14pt;
+      font-weight: bold;
+      color: #7b2d3f;
+      margin-top: 1rem;
+      text-align: center;
+      padding: 0 0.5in;
+    }
   </style>
 </head>
 <body>
@@ -658,6 +693,41 @@
       return attacks;
     }
 
+    // Try to find an image from the creature's family
+    async function fetchFamilyImage(familyName) {
+      if (!familyName) return null;
+
+      // Search for creatures in this family that have images
+      const searchQuery = {
+        query: {
+          bool: {
+            must: [
+              { term: { category: 'creature' } },
+              { match: { creature_family: familyName } },
+              { exists: { field: 'image' } }
+            ]
+          }
+        },
+        size: 1,
+        _source: ['image']
+      };
+
+      try {
+        const response = await fetch(ES_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(searchQuery)
+        });
+        const data = await response.json();
+        if (data.hits.hits.length > 0 && data.hits.hits[0]._source.image?.[0]) {
+          return `https://2e.aonprd.com${data.hits.hits[0]._source.image[0]}`;
+        }
+      } catch (e) {
+        console.warn('Family image lookup failed:', e);
+      }
+      return null;
+    }
+
     // Fetch full monster data for card generation
     async function fetchMonsterData(id) {
       // Check cache first
@@ -687,13 +757,21 @@
       const abilityNames = src.creature_ability || [];
       const markdown = src.markdown || '';
 
+      // Get image - try direct image first, then family fallback
+      let imageUrl = src.image?.[0] ? `https://2e.aonprd.com${src.image[0]}` : null;
+
+      // If no image, try to find one from the creature family
+      if (!imageUrl && src.creature_family) {
+        imageUrl = await fetchFamilyImage(src.creature_family);
+      }
+
       const monster = {
         id: id,
         name: src.name,
         level: src.level,
         type: `${src.size?.[0] || ''} ${src.creature_family || 'Creature'}`.trim(),
         traits: (src.trait || []).filter(t => !['CE', 'NE', 'LE', 'CG', 'NG', 'LG', 'CN', 'LN', 'N', 'Small', 'Medium', 'Large', 'Tiny', 'Huge', 'Gargantuan'].includes(t)),
-        image: src.image?.[0] ? `https://2e.aonprd.com${src.image[0]}` : null,
+        image: imageUrl,
         hp: src.hp || '?',
         ac: src.ac || '?',
         fort: src.fortitude_save ? `+${src.fortitude_save}` : '?',
@@ -943,9 +1021,14 @@
       const card = document.createElement('div');
       card.className = 'card';
 
+      // Create portrait section - either image or placeholder
+      const portraitContent = monster.image
+        ? `<img src="${monster.image}" alt="${monster.name}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'><div class=\\'creature-silhouette\\'></div><div class=\\'no-image-name\\'>${monster.name}</div></div>'" />`
+        : `<div class="no-image"><div class="creature-silhouette"></div><div class="no-image-name">${monster.name}</div></div>`;
+
       card.innerHTML = `
         <div class="card-portrait">
-          <img src="${monster.image}" alt="${monster.name}" onerror="this.style.display='none'" />
+          ${portraitContent}
         </div>
         <div class="card-stats">
           <div class="stats-header">
