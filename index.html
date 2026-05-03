@@ -496,39 +496,85 @@
       outline: 2px solid #e94560;
     }
 
-    /* Placeholder for monsters without images */
-    .no-image {
+    /* Drop zone for missing images */
+    .image-dropzone {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       width: 100%;
       height: 100%;
-      background: linear-gradient(135deg, #e8e4dc 0%, #d4d0c6 100%);
-      border: 3px solid #7b2d3f;
+      background: #fafafa;
+      border: 3px dashed #999;
       border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
     }
 
-    .creature-silhouette {
-      width: 120px;
-      height: 150px;
-      background: #7b2d3f;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M50 0 C60 10 75 15 80 25 C85 40 82 55 78 65 C85 75 90 85 88 95 C85 105 75 115 60 118 C55 119 45 119 40 118 C25 115 15 105 12 95 C10 85 15 75 22 65 C18 55 15 40 20 25 C25 15 40 10 50 0'/%3E%3C/svg%3E");
-      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M50 0 C60 10 75 15 80 25 C85 40 82 55 78 65 C85 75 90 85 88 95 C85 105 75 115 60 118 C55 119 45 119 40 118 C25 115 15 105 12 95 C10 85 15 75 22 65 C18 55 15 40 20 25 C25 15 40 10 50 0'/%3E%3C/svg%3E");
-      mask-size: contain;
-      -webkit-mask-size: contain;
-      mask-repeat: no-repeat;
-      -webkit-mask-repeat: no-repeat;
-      opacity: 0.3;
+    .image-dropzone:hover,
+    .image-dropzone.dragover {
+      border-color: #7b2d3f;
+      background: #f5f0f0;
     }
 
-    .no-image-name {
-      font-size: 14pt;
-      font-weight: bold;
-      color: #7b2d3f;
-      margin-top: 1rem;
+    .image-dropzone .drop-icon {
+      font-size: 48px;
+      color: #999;
+      margin-bottom: 0.5rem;
+    }
+
+    .image-dropzone .drop-text {
+      font-size: 11pt;
+      color: #666;
       text-align: center;
-      padding: 0 0.5in;
+    }
+
+    .image-dropzone .drop-hint {
+      font-size: 9pt;
+      color: #999;
+      margin-top: 0.25rem;
+    }
+
+    /* Custom uploaded image with vignette */
+    .custom-image-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .custom-image-container img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Vignette overlay for images with backgrounds */
+    .custom-image-container.has-vignette::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(255,255,255,0.9) 100%);
+      pointer-events: none;
+    }
+
+    /* Print: hide dotted border, show clean */
+    @media print {
+      .image-dropzone {
+        border: none;
+        background: white;
+      }
+      .image-dropzone .drop-icon,
+      .image-dropzone .drop-text,
+      .image-dropzone .drop-hint {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -1015,19 +1061,27 @@
 
       preview.style.display = 'block';
       preview.scrollIntoView({ behavior: 'smooth' });
+
+      // Set up dropzones for custom image uploads
+      setupAllDropzones();
     }
 
     function createCard(monster) {
       const card = document.createElement('div');
       card.className = 'card';
+      const cardId = `card-${monster.id || Math.random().toString(36).substr(2, 9)}`;
 
-      // Create portrait section - either image or placeholder
+      // Create portrait section - either image or dropzone
       const portraitContent = monster.image
-        ? `<img src="${monster.image}" alt="${monster.name}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'><div class=\\'creature-silhouette\\'></div><div class=\\'no-image-name\\'>${monster.name}</div></div>'" />`
-        : `<div class="no-image"><div class="creature-silhouette"></div><div class="no-image-name">${monster.name}</div></div>`;
+        ? `<img src="${monster.image}" alt="${monster.name}" onerror="showDropzone(this, '${monster.name}')" />`
+        : `<div class="image-dropzone" data-card-id="${cardId}" data-monster-name="${monster.name}">
+             <div class="drop-icon">📷</div>
+             <div class="drop-text">Drop image here</div>
+             <div class="drop-hint">or click to browse</div>
+           </div>`;
 
       card.innerHTML = `
-        <div class="card-portrait">
+        <div class="card-portrait" id="${cardId}">
           ${portraitContent}
         </div>
         <div class="card-stats">
@@ -1078,6 +1132,135 @@
       `;
 
       return card;
+    }
+
+    // Show dropzone when image fails to load
+    function showDropzone(imgElement, monsterName) {
+      const portrait = imgElement.parentElement;
+      const cardId = portrait.id;
+      portrait.innerHTML = `
+        <div class="image-dropzone" data-card-id="${cardId}" data-monster-name="${monsterName}">
+          <div class="drop-icon">📷</div>
+          <div class="drop-text">Drop image here</div>
+          <div class="drop-hint">or click to browse</div>
+        </div>
+      `;
+      setupDropzone(portrait.querySelector('.image-dropzone'));
+    }
+
+    // Set up dropzone event handlers
+    function setupDropzone(dropzone) {
+      if (!dropzone) return;
+
+      // Drag events
+      dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+
+      dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+          handleImageUpload(dropzone, file);
+        }
+      });
+
+      // Click to browse
+      dropzone.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+          const file = e.target.files[0];
+          if (file) handleImageUpload(dropzone, file);
+        };
+        input.click();
+      });
+    }
+
+    // Handle uploaded image
+    function handleImageUpload(dropzone, file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        const portrait = dropzone.closest('.card-portrait');
+
+        // Create image to check for transparency/background
+        const testImg = new Image();
+        testImg.onload = () => {
+          // Check if image has significant background by sampling edges
+          const hasBackground = checkImageHasBackground(testImg);
+
+          // Replace dropzone with image container
+          // Note: The portrait is already rotated 180deg, so we don't need to flip the image itself
+          portrait.innerHTML = `
+            <div class="custom-image-container${hasBackground ? ' has-vignette' : ''}">
+              <img src="${dataUrl}" alt="Custom image" />
+            </div>
+          `;
+        };
+        testImg.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Check if image has a background (non-transparent edges)
+    function checkImageHasBackground(img) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const size = 100; // Sample at smaller size for speed
+      canvas.width = size;
+      canvas.height = size;
+      ctx.drawImage(img, 0, 0, size, size);
+
+      try {
+        const imageData = ctx.getImageData(0, 0, size, size);
+        const data = imageData.data;
+
+        // Sample corners and edges
+        const samplePoints = [
+          [0, 0], [size-1, 0], [0, size-1], [size-1, size-1], // corners
+          [size/2, 0], [size/2, size-1], [0, size/2], [size-1, size/2] // edge midpoints
+        ];
+
+        let opaqueCount = 0;
+        let colorVariance = 0;
+        let lastColor = null;
+
+        for (const [x, y] of samplePoints) {
+          const idx = (Math.floor(y) * size + Math.floor(x)) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          const a = data[idx + 3];
+
+          // Check if pixel is opaque (not transparent)
+          if (a > 200) opaqueCount++;
+
+          // Check color variance (to detect solid backgrounds)
+          if (lastColor) {
+            colorVariance += Math.abs(r - lastColor.r) + Math.abs(g - lastColor.g) + Math.abs(b - lastColor.b);
+          }
+          lastColor = { r, g, b };
+        }
+
+        // Has background if most edge pixels are opaque and similar color
+        return opaqueCount >= 6 && colorVariance < 200;
+      } catch (e) {
+        // Canvas tainted or other error - assume has background
+        return true;
+      }
+    }
+
+    // Set up dropzones after cards are generated
+    function setupAllDropzones() {
+      document.querySelectorAll('.image-dropzone').forEach(setupDropzone);
     }
 
     // Set up input event listeners
