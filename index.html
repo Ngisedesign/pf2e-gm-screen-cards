@@ -617,7 +617,7 @@
 
       const searchQuery = {
         query: {
-          term: { id: `creature-${id}` }
+          match: { id: `creature-${id}` }
         },
         size: 1,
         _source: ['name', 'level', 'image', 'hp', 'ac', 'fortitude_save', 'reflex_save', 'will_save',
