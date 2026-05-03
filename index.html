@@ -612,19 +612,23 @@
     function parseAbilities(markdown, abilityNames) {
       const abilities = [];
       for (const name of abilityNames.slice(0, 3)) {
-        // Look for ability pattern: **Name** <actions.../> or **Name** text
-        const pattern = new RegExp(`\\*\\*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\*\\*[^*]*?(?=\\*\\*|---|\n\n|$)`, 'i');
+        // Look for ability pattern: **Name** followed by text until next section
+        const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const pattern = new RegExp(`\\*\\*${escapedName}\\*\\*([\\s\\S]*?)(?=\\n\\n|---|\n\\*\\*[A-Z]|$)`, 'i');
         const match = markdown.match(pattern);
-        if (match) {
+        if (match && match[1]) {
           // Clean up the description
-          let desc = match[0]
-            .replace(/\*\*[^*]+\*\*/, '') // Remove ability name
+          let desc = match[1]
             .replace(/<actions[^>]*\/>/g, '') // Remove action icons
+            .replace(/\*\*Trigger\*\*/g, 'Trigger:')
+            .replace(/\*\*Effect\*\*/g, 'Effect:')
+            .replace(/\*\*[^*]+\*\*/g, '') // Remove other bold markers
             .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to plain text
             .replace(/<[^>]+>/g, '') // Remove remaining HTML
+            .replace(/\s+/g, ' ') // Collapse whitespace
             .trim();
           // Truncate if too long
-          if (desc.length > 120) desc = desc.substring(0, 117) + '...';
+          if (desc.length > 150) desc = desc.substring(0, 147) + '...';
           abilities.push({ name, desc });
         } else {
           abilities.push({ name, desc: '' });
