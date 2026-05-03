@@ -547,6 +547,31 @@
     let selectedIndex = -1;
     let currentResults = [];
 
+    // Sample monster data for card generation (placeholder until scraper is built)
+    const sampleMonsters = {
+      2945: {
+        name: "Adult Fortune Dragon",
+        level: 14,
+        type: "Huge Arcane Dragon",
+        traits: ["Dragon", "Arcane"],
+        image: "https://2e.aonprd.com/Images/Monsters/Dragon_Fortune_Adult.png",
+        hp: 230,
+        ac: 36,
+        fort: "+24",
+        ref: "+27",
+        will: "+24",
+        speed: "70 ft., fly 140 ft.",
+        abilities: [
+          { name: "Aura of Disruption", desc: "30 ft. When a spell is counteracted within the aura, the dragon regains a spell slot." },
+          { name: "Disruptive Breath", desc: "40-foot cone, 13d6 force, DC 34. Failed: stupefied 2." }
+        ],
+        attacks: [
+          { name: "Jaws", bonus: "+27", damage: "3d10+13 piercing", reach: "15 ft." },
+          { name: "Claw", bonus: "+27", damage: "3d6+13 slashing", reach: "10 ft." }
+        ]
+      }
+    };
+
     // Elasticsearch endpoint
     // Use relative path - works with proxy server
     const ES_URL = '/api/search';
