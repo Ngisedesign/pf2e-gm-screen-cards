@@ -608,6 +608,51 @@
       }));
     }
 
+    // Parse abilities with descriptions from markdown
+    function parseAbilities(markdown, abilityNames) {
+      const abilities = [];
+      for (const name of abilityNames.slice(0, 3)) {
+        // Look for ability pattern: **Name** <actions.../> or **Name** text
+        const pattern = new RegExp(`\\*\\*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\*\\*[^*]*?(?=\\*\\*|---|\n\n|$)`, 'i');
+        const match = markdown.match(pattern);
+        if (match) {
+          // Clean up the description
+          let desc = match[0]
+            .replace(/\*\*[^*]+\*\*/, '') // Remove ability name
+            .replace(/<actions[^>]*\/>/g, '') // Remove action icons
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to plain text
+            .replace(/<[^>]+>/g, '') // Remove remaining HTML
+            .trim();
+          // Truncate if too long
+          if (desc.length > 120) desc = desc.substring(0, 117) + '...';
+          abilities.push({ name, desc });
+        } else {
+          abilities.push({ name, desc: '' });
+        }
+      }
+      return abilities;
+    }
+
+    // Parse attacks from markdown
+    function parseAttacks(markdown) {
+      const attacks = [];
+      // Match Melee or Ranged attacks: **Melee/Ranged** <actions/> weapon +bonus ... **Damage** dice
+      const attackPattern = /\*\*(Melee|Ranged)\*\*[^*]*?([a-z][a-z\s]+)\s*\+(\d+)[^*]*?\*\*Damage\*\*\s*([^\n]+)/gi;
+      let match;
+      while ((match = attackPattern.exec(markdown)) !== null && attacks.length < 3) {
+        const type = match[1];
+        const name = match[2].trim();
+        const bonus = `+${match[3]}`;
+        let damage = match[4]
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
+          .replace(/<[^>]+>/g, '') // Remove HTML
+          .trim();
+        if (damage.length > 40) damage = damage.substring(0, 37) + '...';
+        attacks.push({ name: name.charAt(0).toUpperCase() + name.slice(1), bonus, damage, reach: type });
+      }
+      return attacks;
+    }
+
     // Fetch full monster data for card generation
     async function fetchMonsterData(id) {
       // Check cache first
@@ -621,7 +666,7 @@
         },
         size: 1,
         _source: ['name', 'level', 'image', 'hp', 'ac', 'fortitude_save', 'reflex_save', 'will_save',
-                  'speed_raw', 'creature_ability', 'trait', 'size', 'rarity', 'creature_family']
+                  'speed_raw', 'creature_ability', 'trait', 'size', 'rarity', 'creature_family', 'markdown']
       };
 
       const response = await fetch(ES_URL, {
@@ -634,6 +679,9 @@
       if (data.hits.hits.length === 0) return null;
 
       const src = data.hits.hits[0]._source;
+      const abilityNames = src.creature_ability || [];
+      const markdown = src.markdown || '';
+
       const monster = {
         id: id,
         name: src.name,
@@ -647,8 +695,8 @@
         ref: src.reflex_save ? `+${src.reflex_save}` : '?',
         will: src.will_save ? `+${src.will_save}` : '?',
         speed: src.speed_raw || '?',
-        abilities: (src.creature_ability || []).slice(0, 3).map(a => ({ name: a, desc: '' })),
-        attacks: []
+        abilities: parseAbilities(markdown, abilityNames),
+        attacks: parseAttacks(markdown)
       };
 
       monsterCache.set(id, monster);
