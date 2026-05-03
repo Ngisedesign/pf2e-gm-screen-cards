@@ -509,6 +509,7 @@
       border-radius: 8px;
       cursor: pointer;
       transition: all 0.2s;
+      position: relative;
     }
 
     .image-dropzone:hover,
@@ -517,22 +518,40 @@
       background: #f5f0f0;
     }
 
-    .image-dropzone .drop-icon {
-      font-size: 48px;
-      color: #999;
+    /* Silhouette placeholder inside dropzone */
+    .image-dropzone .creature-silhouette {
+      width: 100px;
+      height: 130px;
+      background: #7b2d3f;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M50 0 C60 10 75 15 80 25 C85 40 82 55 78 65 C85 75 90 85 88 95 C85 105 75 115 60 118 C55 119 45 119 40 118 C25 115 15 105 12 95 C10 85 15 75 22 65 C18 55 15 40 20 25 C25 15 40 10 50 0'/%3E%3C/svg%3E");
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath d='M50 0 C60 10 75 15 80 25 C85 40 82 55 78 65 C85 75 90 85 88 95 C85 105 75 115 60 118 C55 119 45 119 40 118 C25 115 15 105 12 95 C10 85 15 75 22 65 C18 55 15 40 20 25 C25 15 40 10 50 0'/%3E%3C/svg%3E");
+      mask-size: contain;
+      -webkit-mask-size: contain;
+      mask-repeat: no-repeat;
+      -webkit-mask-repeat: no-repeat;
+      opacity: 0.25;
       margin-bottom: 0.5rem;
     }
 
-    .image-dropzone .drop-text {
-      font-size: 11pt;
-      color: #666;
+    .image-dropzone .monster-name {
+      font-size: 12pt;
+      font-weight: bold;
+      color: #7b2d3f;
+      margin-bottom: 0.75rem;
       text-align: center;
+      padding: 0 0.25in;
     }
 
     .image-dropzone .drop-hint {
       font-size: 9pt;
-      color: #999;
-      margin-top: 0.25rem;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+
+    .image-dropzone .drop-hint .icon {
+      font-size: 14pt;
     }
 
     /* Custom uploaded image with vignette */
@@ -1071,13 +1090,13 @@
       card.className = 'card';
       const cardId = `card-${monster.id || Math.random().toString(36).substr(2, 9)}`;
 
-      // Create portrait section - either image or dropzone
+      // Create portrait section - either image or dropzone with placeholder
       const portraitContent = monster.image
         ? `<img src="${monster.image}" alt="${monster.name}" onerror="showDropzone(this, '${monster.name}')" />`
         : `<div class="image-dropzone" data-card-id="${cardId}" data-monster-name="${monster.name}">
-             <div class="drop-icon">📷</div>
-             <div class="drop-text">Drop image here</div>
-             <div class="drop-hint">or click to browse</div>
+             <div class="creature-silhouette"></div>
+             <div class="monster-name">${monster.name}</div>
+             <div class="drop-hint"><span class="icon">📷</span> Drop image or click</div>
            </div>`;
 
       card.innerHTML = `
@@ -1140,9 +1159,9 @@
       const cardId = portrait.id;
       portrait.innerHTML = `
         <div class="image-dropzone" data-card-id="${cardId}" data-monster-name="${monsterName}">
-          <div class="drop-icon">📷</div>
-          <div class="drop-text">Drop image here</div>
-          <div class="drop-hint">or click to browse</div>
+          <div class="creature-silhouette"></div>
+          <div class="monster-name">${monsterName}</div>
+          <div class="drop-hint"><span class="icon">📷</span> Drop image or click</div>
         </div>
       `;
       setupDropzone(portrait.querySelector('.image-dropzone'));
