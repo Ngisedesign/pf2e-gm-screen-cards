@@ -576,7 +576,7 @@
     // Use relative path - works with proxy server
     const ES_URL = '/api/search';
 
-    // Search AoN Elasticsearch for creatures
+    // Search AoN Elasticsearch for creatures (lightweight for autocomplete)
     async function searchCreatures(query) {
       const searchQuery = {
         query: {
@@ -606,6 +606,53 @@
         level: hit._source.level,
         image: hit._source.image?.[0] ? `https://2e.aonprd.com${hit._source.image[0]}` : null
       }));
+    }
+
+    // Fetch full monster data for card generation
+    async function fetchMonsterData(id) {
+      // Check cache first
+      if (monsterCache.has(id)) {
+        return monsterCache.get(id);
+      }
+
+      const searchQuery = {
+        query: {
+          term: { id: `creature-${id}` }
+        },
+        size: 1,
+        _source: ['name', 'level', 'image', 'hp', 'ac', 'fortitude_save', 'reflex_save', 'will_save',
+                  'speed_raw', 'creature_ability', 'trait', 'size', 'rarity', 'creature_family']
+      };
+
+      const response = await fetch(ES_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(searchQuery)
+      });
+
+      const data = await response.json();
+      if (data.hits.hits.length === 0) return null;
+
+      const src = data.hits.hits[0]._source;
+      const monster = {
+        id: id,
+        name: src.name,
+        level: src.level,
+        type: `${src.size?.[0] || ''} ${src.creature_family || 'Creature'}`.trim(),
+        traits: (src.trait || []).filter(t => !['CE', 'NE', 'LE', 'CG', 'NG', 'LG', 'CN', 'LN', 'N', 'Small', 'Medium', 'Large', 'Tiny', 'Huge', 'Gargantuan'].includes(t)),
+        image: src.image?.[0] ? `https://2e.aonprd.com${src.image[0]}` : null,
+        hp: src.hp || '?',
+        ac: src.ac || '?',
+        fort: src.fortitude_save ? `+${src.fortitude_save}` : '?',
+        ref: src.reflex_save ? `+${src.reflex_save}` : '?',
+        will: src.will_save ? `+${src.will_save}` : '?',
+        speed: src.speed_raw || '?',
+        abilities: (src.creature_ability || []).slice(0, 3).map(a => ({ name: a, desc: '' })),
+        attacks: []
+      };
+
+      monsterCache.set(id, monster);
+      return monster;
     }
 
     // Handle input changes for live search
@@ -651,12 +698,18 @@
       const suggestions = document.getElementById('suggestions');
       suggestions.innerHTML = currentResults.map((r, i) => `
         <div class="suggestion-item${i === selectedIndex ? ' selected' : ''}"
-             onclick="selectSuggestion('${r.id}', '${r.name.replace(/'/g, "\\'")}', ${r.level})"
+             onclick="selectSuggestionByIndex(${i})"
              data-index="${i}">
           <span class="name">${r.name}</span>
           <span class="level">Lv ${r.level}</span>
         </div>
       `).join('');
+    }
+
+    // Select by index (called from click)
+    function selectSuggestionByIndex(index) {
+      const r = currentResults[index];
+      if (r) selectSuggestion(r.id, r.name, r.level, r.image);
     }
 
     // Handle keyboard navigation
@@ -675,7 +728,7 @@
       } else if (e.key === 'Enter' && selectedIndex >= 0) {
         e.preventDefault();
         const r = currentResults[selectedIndex];
-        selectSuggestion(r.id, r.name, r.level);
+        selectSuggestion(r.id, r.name, r.level, r.image);
       } else if (e.key === 'Escape') {
         suggestions.classList.remove('visible');
         selectedIndex = -1;
@@ -683,7 +736,7 @@
     }
 
     // Select a suggestion from dropdown
-    function selectSuggestion(id, name, level) {
+    function selectSuggestion(id, name, level, image) {
       const input = document.getElementById('monsterInput');
       const suggestions = document.getElementById('suggestions');
 
@@ -691,12 +744,14 @@
         id: id,
         name: name,
         level: level,
+        image: image,
         url: `https://2e.aonprd.com/Monsters.aspx?ID=${id}`
       });
 
       renderMonsterList();
       input.value = '';
       suggestions.classList.remove('visible');
+      selectedIndex = -1;
     }
 
     // Close suggestions when clicking outside
@@ -782,11 +837,22 @@
       const monsterData = [];
 
       for (const m of monsters) {
-        if (m.id && sampleMonsters[m.id]) {
-          monsterData.push(sampleMonsters[m.id]);
-        } else {
-          // For now, use sample data - will implement actual scraping
-          monsterData.push(sampleMonsters[2945]);
+        if (m.id) {
+          const data = await fetchMonsterData(m.id);
+          if (data) {
+            monsterData.push(data);
+          } else {
+            // Fallback: use basic info we already have
+            monsterData.push({
+              name: m.name,
+              level: m.level,
+              type: 'Creature',
+              traits: [],
+              image: m.image,
+              hp: '?', ac: '?', fort: '?', ref: '?', will: '?',
+              speed: '?', abilities: [], attacks: []
+            });
+          }
         }
       }
 
