@@ -1,0 +1,8 @@
+{
+  "name": "pf2e-gm-screen-cards",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun run server.ts"
+  }
+}

@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PF2e GM Screen Cards</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+      padding: 2rem;
+      text-align: center;
+      border-bottom: 2px solid #e94560;
+    }
+
+    .app-header h1 {
+      font-size: 2rem;
+      color: #e94560;
+      margin-bottom: 0.5rem;
+    }
+
+    .app-header p {
+      color: #888;
+      font-size: 0.9rem;
+    }
+
+    .input-section {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .input-group input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      border: 2px solid #333;
+      border-radius: 8px;
+      background: #16213e;
+      color: #eee;
+      font-size: 1rem;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .input-group button {
+      padding: 0.75rem 1.5rem;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .input-group button:hover {
+      background: #c73e54;
+    }
+
+    .input-group button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    .monster-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .monster-tag {
+      background: #16213e;
+      border: 1px solid #e94560;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .monster-tag .remove {
+      cursor: pointer;
+      color: #e94560;
+      font-weight: bold;
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+
+    .actions button {
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #e94560;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #c73e54;
+    }
+
+    .btn-secondary {
+      background: #333;
+      color: #eee;
+      border: 2px solid #555;
+    }
+
+    .btn-secondary:hover {
+      border-color: #e94560;
+    }
+
+    .status {
+      text-align: center;
+      padding: 1rem;
+      color: #888;
+      font-style: italic;
+    }
+
+    .status.loading::after {
+      content: '';
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0%, 20% { content: '.'; }
+      40% { content: '..'; }
+      60%, 100% { content: '...'; }
+    }
+
+    /* Print Preview Section */
+    .print-preview {
+      background: #0f0f1a;
+      padding: 2rem;
+      margin-top: 2rem;
+    }
+
+    .preview-header {
+      max-width: 800px;
+      margin: 0 auto 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .preview-header h2 {
+      color: #e94560;
+    }
+
+    /* Print Layout - Portrait orientation, 2 cards side by side */
+    .print-page {
+      width: 8.5in;
+      height: 11in;
+      background: white;
+      margin: 1rem auto;
+      display: flex;
+      flex-direction: row;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+
+    .card {
+      width: 4.25in;
+      height: 11in;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:first-child {
+      border-right: 1px dashed #ccc;
+    }
+
+    /*
+      Card Layout for GM Screen draping:
+      - Top half: Portrait (rotated 180deg - faces players when draped over screen)
+      - Bottom half: Stats (normal orientation - faces GM when draped)
+      Both halves folded over the screen top
+    */
+    .card-portrait {
+      height: 5.5in;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5in;
+      background: #ffffff;
+      transform: rotate(180deg);
+    }
+
+    .card-portrait img {
+      max-width: 100%;
+      max-height: 4.5in;
+      object-fit: contain;
+    }
+
+    /* Stats section - normal orientation for GM viewing when draped */
+    .card-stats {
+      height: 5.5in;
+      padding: 0.25in;
+      background: #f8f6f1;
+      color: #1a1a1a;
+      font-size: 8pt;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .stats-header {
+      border-bottom: 3px solid #7b2d3f;
+      padding-bottom: 0.12in;
+      margin-bottom: 0.1in;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    .stats-header .name-block {
+      flex: 1;
+    }
+
+    .stats-header .name {
+      font-size: 14pt;
+      font-weight: bold;
+      color: #7b2d3f;
+      line-height: 1.1;
+    }
+
+    .stats-header .type-line {
+      font-size: 9pt;
+      color: #555;
+      font-style: italic;
+      margin-top: 2px;
+    }
+
+    .stats-header .level-badge {
+      background: #7b2d3f;
+      color: white;
+      padding: 0.08in 0.12in;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 11pt;
+      white-space: nowrap;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 0.08in;
+      margin-bottom: 0.06in;
+      flex-wrap: wrap;
+    }
+
+    .stat-block {
+      background: #ebe8df;
+      padding: 0.04in 0.1in;
+      border-radius: 3px;
+      font-size: 8pt;
+      border-left: 3px solid #7b2d3f;
+    }
+
+    .stat-label {
+      font-weight: bold;
+      color: #7b2d3f;
+    }
+
+    .traits {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.04in;
+      margin: 0.08in 0;
+    }
+
+    .trait {
+      background: #4a4a5a;
+      color: white;
+      padding: 0.03in 0.08in;
+      border-radius: 3px;
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .trait.rare { background: #0066cc; }
+    .trait.uncommon { background: #cc6600; }
+    .trait.unique { background: #9900cc; }
+
+    .abilities-section {
+      flex: 1;
+      overflow: hidden;
+      font-size: 7.5pt;
+      line-height: 1.35;
+      margin-top: 0.08in;
+    }
+
+    .ability {
+      margin-bottom: 0.06in;
+      padding-left: 0.08in;
+      border-left: 2px solid #d4d0c6;
+    }
+
+    .ability-name {
+      font-weight: bold;
+      color: #7b2d3f;
+    }
+
+    .attacks-section {
+      border-top: 2px solid #d4d0c6;
+      padding-top: 0.08in;
+      margin-top: auto;
+    }
+
+    .attacks-section-title {
+      font-weight: bold;
+      color: #7b2d3f;
+      font-size: 8pt;
+      margin-bottom: 0.04in;
+    }
+
+    .attack {
+      font-size: 7.5pt;
+      margin-bottom: 0.04in;
+      display: flex;
+      gap: 0.1in;
+    }
+
+    .attack-name {
+      font-weight: bold;
+      color: #333;
+      min-width: 0.5in;
+    }
+
+    .attack-bonus {
+      color: #7b2d3f;
+      font-weight: bold;
+    }
+
+    /* Print styles */
+    @media print {
+      body {
+        background: white;
+      }
+
+      .app-header, .input-section, .preview-header, .status {
+        display: none;
+      }
+
+      .print-preview {
+        background: white;
+        padding: 0;
+        margin: 0;
+      }
+
+      .print-page {
+        box-shadow: none;
+        page-break-after: always;
+        margin: 0;
+      }
+
+      .card:first-child {
+        border-right: 1px dashed #999;
+      }
+    }
+
+    /* Responsive adjustments for preview */
+    @media screen and (max-width: 900px) {
+      .print-page {
+        transform: scale(0.6);
+        transform-origin: top center;
+      }
+    }
+
+    .help-text {
+      max-width: 600px;
+      margin: 1rem auto;
+      padding: 1rem;
+      background: #16213e;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    .help-text h3 {
+      color: #e94560;
+      margin-bottom: 0.5rem;
+    }
+
+    .help-text ol {
+      margin-left: 1.5rem;
+    }
+
+    .help-text li {
+      margin-bottom: 0.3rem;
+    }
+
+    /* Search suggestions dropdown */
+    .input-wrapper {
+      position: relative;
+      flex: 1;
+    }
+
+    .suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: #16213e;
+      border: 2px solid #e94560;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+
+    .suggestions.visible {
+      display: block;
+    }
+
+    .suggestion-item {
+      padding: 0.6rem 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #333;
+    }
+
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+
+    .suggestion-item:hover {
+      background: #1f2a4a;
+    }
+
+    .suggestion-item .name {
+      color: #eee;
+    }
+
+    .suggestion-item .level {
+      color: #e94560;
+      font-size: 0.8rem;
+      background: #1a1a2e;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+
+    .suggestion-item.searching {
+      color: #888;
+      font-style: italic;
+      justify-content: center;
+    }
+
+    .suggestion-item.no-results {
+      color: #e94560;
+      font-style: italic;
+      justify-content: center;
+    }
+
+    .suggestion-item.selected {
+      background: #2a3a5a;
+      outline: 2px solid #e94560;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>PF2e GM Screen Cards</h1>
+    <p>Generate printable monster cards for your GM screen from Archives of Nethys</p>
+  </header>
+
+  <section class="input-section">
+    <div class="input-group">
+      <div class="input-wrapper">
+        <input type="text" id="monsterInput" placeholder="Enter AoN URL or monster name..." autocomplete="off" />
+        <div class="suggestions" id="suggestions"></div>
+      </div>
+      <button id="addBtn" onclick="addMonster()">Add</button>
+    </div>
+
+    <div class="monster-list" id="monsterList"></div>
+
+    <div class="actions">
+      <button class="btn-primary" id="generateBtn" onclick="generateCards()">Generate Cards</button>
+      <button class="btn-secondary" onclick="window.print()">Print</button>
+    </div>
+
+    <div class="help-text">
+      <h3>How to use</h3>
+      <ol>
+        <li>Paste an AoN monster URL (e.g., https://2e.aonprd.com/Monsters.aspx?ID=2945)</li>
+        <li>Or type a monster name to search</li>
+        <li>Add multiple monsters, then click Generate</li>
+        <li>Print on letter paper, cut in half, fold over GM screen</li>
+      </ol>
+    </div>
+  </section>
+
+  <div id="status" class="status"></div>
+
+  <section class="print-preview" id="printPreview" style="display: none;">
+    <div class="preview-header">
+      <h2>Print Preview</h2>
+      <button class="btn-secondary" onclick="window.print()">Print Cards</button>
+    </div>
+    <div id="pages"></div>
+  </section>
+
+  <script>
+    const monsters = [];
+    const monsterCache = new Map();
+    let searchTimeout = null;
+    let selectedIndex = -1;
+    let currentResults = [];
+
+    // Elasticsearch endpoint
+    // Use relative path - works with proxy server
+    const ES_URL = '/api/search';
+
+    // Search AoN Elasticsearch for creatures
+    async function searchCreatures(query) {
+      const searchQuery = {
+        query: {
+          bool: {
+            must: [{ match: { category: 'creature' } }],
+            should: [
+              { match: { name: { query: query, fuzziness: 'AUTO', boost: 2 } } },
+              { match_phrase_prefix: { name: { query: query, boost: 3 } } }
+            ],
+            minimum_should_match: 1
+          }
+        },
+        size: 8,
+        _source: ['name', 'level', 'image']
+      };
+
+      const response = await fetch(ES_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(searchQuery)
+      });
+
+      const data = await response.json();
+      return data.hits.hits.map(hit => ({
+        id: hit._id.replace('creature-', ''),
+        name: hit._source.name,
+        level: hit._source.level,
+        image: hit._source.image?.[0] ? `https://2e.aonprd.com${hit._source.image[0]}` : null
+      }));
+    }
+
+    // Handle input changes for live search
+    function handleInput(e) {
+      const value = e.target.value.trim();
+      const suggestions = document.getElementById('suggestions');
+
+      // Clear previous timeout
+      if (searchTimeout) clearTimeout(searchTimeout);
+      selectedIndex = -1;
+      currentResults = [];
+
+      // If it's a URL, don't search
+      if (value.includes('aonprd.com') || value.length < 2) {
+        suggestions.classList.remove('visible');
+        return;
+      }
+
+      // Show searching indicator
+      suggestions.innerHTML = '<div class="suggestion-item searching">Searching...</div>';
+      suggestions.classList.add('visible');
+
+      // Debounce search
+      searchTimeout = setTimeout(async () => {
+        try {
+          const results = await searchCreatures(value);
+          currentResults = results;
+
+          if (results.length === 0) {
+            suggestions.innerHTML = '<div class="suggestion-item no-results">No creatures found</div>';
+          } else {
+            renderSuggestions();
+          }
+        } catch (err) {
+          console.error('Search failed:', err);
+          suggestions.innerHTML = '<div class="suggestion-item no-results">Search failed</div>';
+        }
+      }, 300);
+    }
+
+    // Render suggestions with selection highlight
+    function renderSuggestions() {
+      const suggestions = document.getElementById('suggestions');
+      suggestions.innerHTML = currentResults.map((r, i) => `
+        <div class="suggestion-item${i === selectedIndex ? ' selected' : ''}"
+             onclick="selectSuggestion('${r.id}', '${r.name.replace(/'/g, "\\'")}', ${r.level})"
+             data-index="${i}">
+          <span class="name">${r.name}</span>
+          <span class="level">Lv ${r.level}</span>
+        </div>
+      `).join('');
+    }
+
+    // Handle keyboard navigation
+    function handleKeydown(e) {
+      const suggestions = document.getElementById('suggestions');
+      if (!suggestions.classList.contains('visible') || currentResults.length === 0) return;
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
+        renderSuggestions();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, -1);
+        renderSuggestions();
+      } else if (e.key === 'Enter' && selectedIndex >= 0) {
+        e.preventDefault();
+        const r = currentResults[selectedIndex];
+        selectSuggestion(r.id, r.name, r.level);
+      } else if (e.key === 'Escape') {
+        suggestions.classList.remove('visible');
+        selectedIndex = -1;
+      }
+    }
+
+    // Select a suggestion from dropdown
+    function selectSuggestion(id, name, level) {
+      const input = document.getElementById('monsterInput');
+      const suggestions = document.getElementById('suggestions');
+
+      monsters.push({
+        id: id,
+        name: name,
+        level: level,
+        url: `https://2e.aonprd.com/Monsters.aspx?ID=${id}`
+      });
+
+      renderMonsterList();
+      input.value = '';
+      suggestions.classList.remove('visible');
+    }
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', (e) => {
+      const suggestions = document.getElementById('suggestions');
+      const input = document.getElementById('monsterInput');
+      if (!suggestions.contains(e.target) && e.target !== input) {
+        suggestions.classList.remove('visible');
+      }
+    });
+
+    function addMonster() {
+      const input = document.getElementById('monsterInput');
+      const value = input.value.trim();
+      const suggestions = document.getElementById('suggestions');
+
+      if (!value) return;
+
+      // Hide suggestions
+      suggestions.classList.remove('visible');
+
+      // Extract ID from URL if it's a URL
+      let monsterId = null;
+      let monsterName = value;
+
+      if (value.includes('aonprd.com')) {
+        const match = value.match(/ID=(\d+)/);
+        if (match) {
+          monsterId = match[1];
+          monsterName = `Monster #${monsterId}`;
+        }
+        monsters.push({ id: monsterId, name: monsterName, url: value });
+        renderMonsterList();
+        input.value = '';
+      } else {
+        // It's a name search - trigger search and pick first result
+        searchCreatures(value).then(results => {
+          if (results.length > 0) {
+            const r = results[0];
+            monsters.push({
+              id: r.id,
+              name: r.name,
+              level: r.level,
+              url: `https://2e.aonprd.com/Monsters.aspx?ID=${r.id}`
+            });
+            renderMonsterList();
+            input.value = '';
+          } else {
+            document.getElementById('status').textContent = `No creature found matching "${value}"`;
+          }
+        });
+      }
+    }
+
+    function removeMonster(index) {
+      monsters.splice(index, 1);
+      renderMonsterList();
+    }
+
+    function renderMonsterList() {
+      const list = document.getElementById('monsterList');
+      list.innerHTML = monsters.map((m, i) => `
+        <span class="monster-tag">
+          ${m.name}
+          <span class="remove" onclick="removeMonster(${i})">×</span>
+        </span>
+      `).join('');
+    }
+
+    async function generateCards() {
+      const status = document.getElementById('status');
+      const preview = document.getElementById('printPreview');
+      const pages = document.getElementById('pages');
+
+      if (monsters.length === 0) {
+        status.textContent = 'Add at least one monster first!';
+        return;
+      }
+
+      status.textContent = 'Fetching monster data';
+      status.className = 'status loading';
+
+      const monsterData = [];
+
+      for (const m of monsters) {
+        if (m.id && sampleMonsters[m.id]) {
+          monsterData.push(sampleMonsters[m.id]);
+        } else {
+          // For now, use sample data - will implement actual scraping
+          monsterData.push(sampleMonsters[2945]);
+        }
+      }
+
+      status.textContent = '';
+      status.className = 'status';
+
+      // Generate pages (2 cards per page)
+      pages.innerHTML = '';
+
+      for (let i = 0; i < monsterData.length; i += 2) {
+        const page = document.createElement('div');
+        page.className = 'print-page';
+
+        // First card
+        page.appendChild(createCard(monsterData[i]));
+
+        // Second card (or empty)
+        if (monsterData[i + 1]) {
+          page.appendChild(createCard(monsterData[i + 1]));
+        } else {
+          const empty = document.createElement('div');
+          empty.className = 'card';
+          empty.style.background = '#f5f5f0';
+          page.appendChild(empty);
+        }
+
+        pages.appendChild(page);
+      }
+
+      preview.style.display = 'block';
+      preview.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function createCard(monster) {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      card.innerHTML = `
+        <div class="card-portrait">
+          <img src="${monster.image}" alt="${monster.name}" onerror="this.style.display='none'" />
+        </div>
+        <div class="card-stats">
+          <div class="stats-header">
+            <div class="name-block">
+              <div class="name">${monster.name}</div>
+              <div class="type-line">${monster.type}</div>
+            </div>
+            <div class="level-badge">Lv ${monster.level}</div>
+          </div>
+
+          <div class="traits">
+            ${monster.traits.map(t => `<span class="trait">${t}</span>`).join('')}
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-block"><span class="stat-label">HP</span> ${monster.hp}</div>
+            <div class="stat-block"><span class="stat-label">AC</span> ${monster.ac}</div>
+            <div class="stat-block"><span class="stat-label">Fort</span> ${monster.fort}</div>
+            <div class="stat-block"><span class="stat-label">Ref</span> ${monster.ref}</div>
+            <div class="stat-block"><span class="stat-label">Will</span> ${monster.will}</div>
+          </div>
+
+          <div class="stat-row">
+            <div class="stat-block"><span class="stat-label">Speed</span> ${monster.speed}</div>
+          </div>
+
+          <div class="abilities-section">
+            ${monster.abilities.map(a => `
+              <div class="ability">
+                <span class="ability-name">${a.name}:</span> ${a.desc}
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="attacks-section">
+            <div class="attacks-section-title">Strikes</div>
+            ${monster.attacks.map(a => `
+              <div class="attack">
+                <span class="attack-name">${a.name}</span>
+                <span class="attack-bonus">${a.bonus}</span>
+                <span>${a.damage}</span>
+                <span style="color:#666">[${a.reach}]</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      return card;
+    }
+
+    // Set up input event listeners
+    const monsterInput = document.getElementById('monsterInput');
+    monsterInput.addEventListener('input', handleInput);
+    monsterInput.addEventListener('keydown', handleKeydown);
+    monsterInput.addEventListener('keypress', (e) => {
+      // Only trigger addMonster on Enter if no suggestion is selected
+      if (e.key === 'Enter' && selectedIndex < 0) addMonster();
+    });
+
+    // Start with empty list
+    renderMonsterList();
+  </script>
+</body>
+</html>
