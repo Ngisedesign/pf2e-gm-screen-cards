@@ -612,9 +612,10 @@
     function parseAbilities(markdown, abilityNames) {
       const abilities = [];
       for (const name of abilityNames.slice(0, 3)) {
-        // Look for ability pattern: **Name** followed by text until next section
+        // Look for ability pattern - handles both **Name** and **[Name](link)** formats
         const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = new RegExp(`\\*\\*${escapedName}\\*\\*([\\s\\S]*?)(?=\\n\\n|---|\n\\*\\*[A-Z]|$)`, 'i');
+        // Match either **Name** or **[Name](/link)** - stop at next ability, <br />, newlines, or ---
+        const pattern = new RegExp(`\\*\\*(?:\\[)?${escapedName}(?:\\][^)]*\\))?\\*\\*([\\s\\S]*?)(?=<br|\\n\\n|---|\n\\*\\*(?:\\[)?[A-Z]|$)`, 'i');
         const match = markdown.match(pattern);
         if (match && match[1]) {
           // Clean up the description
