@@ -383,6 +383,140 @@
       display: block;
     }
 
+    /* Custom monster form modal */
+    .custom-monster-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .custom-monster-modal.visible {
+      display: flex;
+    }
+
+    .custom-monster-panel {
+      background: #16213e;
+      border: 2px solid #e94560;
+      border-radius: 12px;
+      width: min(640px, 100%);
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .custom-monster-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+
+    .custom-monster-header h3 {
+      color: #e94560;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .custom-monster-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .custom-monster-close:hover {
+      color: #eee;
+    }
+
+    .custom-monster-form {
+      padding: 1rem 1.25rem;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .form-section {
+      margin-bottom: 1.25rem;
+    }
+
+    .form-section h4 {
+      color: #e94560;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.6rem;
+      padding-bottom: 0.3rem;
+      border-bottom: 1px solid #333;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.6rem;
+    }
+
+    .form-row > * {
+      flex: 1;
+    }
+
+    .form-field {
+      margin-bottom: 0.6rem;
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-bottom: 0.25rem;
+    }
+
+    .form-field input,
+    .form-field textarea {
+      width: 100%;
+      padding: 0.5rem 0.65rem;
+      border: 2px solid #333;
+      border-radius: 6px;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus {
+      outline: none;
+      border-color: #e94560;
+    }
+
+    .form-field textarea {
+      resize: vertical;
+      min-height: 4rem;
+    }
+
+    .form-hint {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 0.2rem;
+    }
+
+    .custom-monster-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid #333;
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.75rem;
+      flex-shrink: 0;
+    }
+
     /* Stats section - normal orientation for GM viewing when draped */
     .card-stats {
       height: 7in;
@@ -622,6 +756,60 @@
       margin-bottom: 0.3rem;
     }
 
+    .recent-monsters {
+      max-width: 900px;
+      margin: 1rem auto 0;
+      padding: 0 1rem;
+    }
+
+    .recent-monsters h3 {
+      color: #e94560;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .recent-monsters-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      min-height: 2rem;
+    }
+
+    .recent-empty {
+      color: #666;
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+
+    .recent-tag {
+      background: #16213e;
+      border: 1px solid #555;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .recent-tag:hover {
+      border-color: #e94560;
+      background: #1f2a4a;
+    }
+
+    .recent-tag .remove {
+      cursor: pointer;
+      color: #e94560;
+      font-weight: bold;
+      padding: 0 0.15rem;
+    }
+
+    .recent-tag .remove:hover {
+      color: #fff;
+    }
+
     /* Search suggestions dropdown */
     .input-wrapper {
       position: relative;
@@ -783,7 +971,8 @@
     /* Print: hide dotted border, show clean */
     @media print {
       .portrait-replace-overlay,
-      .image-search-modal {
+      .image-search-modal,
+      .custom-monster-modal {
         display: none !important;
       }
 
@@ -818,6 +1007,7 @@
 
     <div class="actions">
       <button class="btn-primary" id="generateBtn" onclick="generateCards()">Generate Cards</button>
+      <button class="btn-secondary" onclick="openCustomMonsterModal()">Custom Monster</button>
       <button class="btn-secondary" onclick="window.print()">Print</button>
     </div>
 
@@ -826,9 +1016,15 @@
       <ol>
         <li>Paste an AoN monster URL (e.g., https://2e.aonprd.com/Monsters.aspx?ID=2945)</li>
         <li>Or type a monster name to search</li>
+        <li>Add monsters from AoN, or click Custom Monster to build your own</li>
         <li>Add multiple monsters, then click Generate</li>
         <li>Print on legal paper (8.5×14), cut in half, fold over GM screen</li>
       </ol>
+    </div>
+
+    <div class="recent-monsters">
+      <h3>Recent monsters</h3>
+      <div class="recent-monsters-list" id="recentMonsters"></div>
     </div>
   </section>
 
@@ -841,6 +1037,135 @@
     </div>
     <div id="pages"></div>
   </section>
+
+  <div id="customMonsterModal" class="custom-monster-modal">
+    <div class="custom-monster-panel">
+      <div class="custom-monster-header">
+        <h3>Custom Monster</h3>
+        <button type="button" class="custom-monster-close" id="customMonsterClose" aria-label="Close">&times;</button>
+      </div>
+      <form id="customMonsterForm" class="custom-monster-form" onsubmit="submitCustomMonster(event)">
+        <div class="form-section">
+          <h4>Identity</h4>
+          <div class="form-field">
+            <label for="customName">Name</label>
+            <input type="text" id="customName" required placeholder="e.g. Ancient Horned Dragon" />
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="customLevel">Level</label>
+              <input type="number" id="customLevel" min="0" max="30" value="1" />
+            </div>
+            <div class="form-field">
+              <label for="customType">Type</label>
+              <input type="text" id="customType" placeholder="e.g. Huge Dragon" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="customTraits">Traits</label>
+            <input type="text" id="customTraits" placeholder="Dragon, Uncommon (comma-separated)" />
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h4>Defenses &amp; Saves</h4>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="customHp">HP</label>
+              <input type="text" id="customHp" placeholder="230" />
+            </div>
+            <div class="form-field">
+              <label for="customAc">AC</label>
+              <input type="text" id="customAc" placeholder="36" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="customFort">Fort</label>
+              <input type="text" id="customFort" placeholder="+24" />
+            </div>
+            <div class="form-field">
+              <label for="customRef">Ref</label>
+              <input type="text" id="customRef" placeholder="+27" />
+            </div>
+            <div class="form-field">
+              <label for="customWill">Will</label>
+              <input type="text" id="customWill" placeholder="+24" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="customImmunities">Immunities</label>
+            <input type="text" id="customImmunities" placeholder="fire, paralyzed, sleep" />
+          </div>
+          <div class="form-field">
+            <label for="customResistances">Resistances</label>
+            <input type="text" id="customResistances" placeholder="cold 10" />
+          </div>
+          <div class="form-field">
+            <label for="customWeaknesses">Weaknesses</label>
+            <input type="text" id="customWeaknesses" placeholder="cold 15" />
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h4>Movement &amp; Skills</h4>
+          <div class="form-field">
+            <label for="customSpeed">Speed</label>
+            <input type="text" id="customSpeed" placeholder="50 ft., fly 100 ft." />
+          </div>
+          <div class="form-field">
+            <label for="customSkills">Skills</label>
+            <input type="text" id="customSkills" placeholder="Perception +24, Athletics +27, Arcana +28" />
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h4>Abilities</h4>
+          <div class="form-field">
+            <label for="customAbilities">Ability text</label>
+            <textarea id="customAbilities" placeholder="Aura of Disruption: 30 ft. When a spell is counteracted...&#10;Disruptive Breath: 40-foot cone, 13d6 force, DC 34."></textarea>
+            <div class="form-hint">One per line: Name: description</div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h4>Strikes</h4>
+          <div class="form-field">
+            <label for="customAttacks">Attack lines</label>
+            <textarea id="customAttacks" placeholder="Jaws, +27, 3d10+13 piercing, Melee&#10;Claw, +27, 3d6+13 slashing, Melee"></textarea>
+            <div class="form-hint">One per line: Name, bonus, damage, Melee/Ranged</div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h4>Spells</h4>
+          <div class="form-field">
+            <label for="customSpellTitle">Spell type</label>
+            <input type="text" id="customSpellTitle" placeholder="Arcane Prepared Spells" />
+          </div>
+          <div class="form-row">
+            <div class="form-field">
+              <label for="customSpellDc">Spell DC</label>
+              <input type="text" id="customSpellDc" placeholder="36" />
+            </div>
+            <div class="form-field">
+              <label for="customSpellAttack">Spell attack</label>
+              <input type="text" id="customSpellAttack" placeholder="+28" />
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="customSpells">Spells by rank</label>
+            <textarea id="customSpells" placeholder="6th: chain lightning, dominate; 5th: fireball; Cantrips (7th): detect magic, shield"></textarea>
+            <div class="form-hint">Separate ranks with semicolons. Format: 6th: spell1, spell2</div>
+          </div>
+        </div>
+      </form>
+      <div class="custom-monster-footer">
+        <button type="button" class="btn-secondary" onclick="closeCustomMonsterModal()">Cancel</button>
+        <button type="submit" form="customMonsterForm" class="btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
 
   <div id="imageSearchModal" class="image-search-modal">
     <div class="image-search-panel">
@@ -855,6 +1180,9 @@
   <script>
     const monsters = [];
     const monsterCache = new Map();
+    const RECENT_STORAGE_KEY = 'pf2e-gm-recent-monsters';
+    const MAX_RECENT_MONSTERS = 5;
+    let recentMonsters = [];
     let searchTimeout = null;
     let selectedIndex = -1;
     let currentResults = [];
@@ -1317,7 +1645,7 @@
       const input = document.getElementById('monsterInput');
       const suggestions = document.getElementById('suggestions');
 
-      monsters.push({
+      addMonsterToQueue({
         id: id,
         name: name,
         level: level,
@@ -1325,7 +1653,6 @@
         url: `https://2e.aonprd.com/Monsters.aspx?ID=${id}`
       });
 
-      renderMonsterList();
       input.value = '';
       suggestions.classList.remove('visible');
       selectedIndex = -1;
@@ -1360,21 +1687,20 @@
           monsterId = match[1];
           monsterName = `Monster #${monsterId}`;
         }
-        monsters.push({ id: monsterId, name: monsterName, url: value });
-        renderMonsterList();
+        addMonsterToQueue({ id: monsterId, name: monsterName, url: value });
         input.value = '';
       } else {
         // It's a name search - trigger search and pick first result
         searchCreatures(value).then(results => {
           if (results.length > 0) {
             const r = results[0];
-            monsters.push({
+            addMonsterToQueue({
               id: r.id,
               name: r.name,
               level: r.level,
+              image: r.image,
               url: `https://2e.aonprd.com/Monsters.aspx?ID=${r.id}`
             });
-            renderMonsterList();
             input.value = '';
           } else {
             document.getElementById('status').textContent = `No creature found matching "${value}"`;
@@ -1392,10 +1718,251 @@
       const list = document.getElementById('monsterList');
       list.innerHTML = monsters.map((m, i) => `
         <span class="monster-tag">
-          ${m.name}
+          ${escapeHtml(m.name)}${m.custom ? ' (custom)' : ''}
           <span class="remove" onclick="removeMonster(${i})">×</span>
         </span>
       `).join('');
+    }
+
+    function cloneMonsterEntry(entry) {
+      return JSON.parse(JSON.stringify(entry));
+    }
+
+    function recentMonsterKey(entry) {
+      if (entry.custom && entry.customData?.id) return `custom:${entry.customData.id}`;
+      if (entry.id) return `aon:${entry.id}`;
+      return `name:${entry.name}`;
+    }
+
+    function loadRecentMonsters() {
+      try {
+        const raw = localStorage.getItem(RECENT_STORAGE_KEY);
+        recentMonsters = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(recentMonsters)) recentMonsters = [];
+        recentMonsters = recentMonsters.slice(0, MAX_RECENT_MONSTERS);
+      } catch {
+        recentMonsters = [];
+      }
+    }
+
+    function saveRecentMonsters() {
+      try {
+        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentMonsters));
+      } catch (err) {
+        console.warn('Could not save recent monsters:', err);
+      }
+    }
+
+    function rememberRecent(entry) {
+      const snapshot = entry.custom && entry.customData
+        ? {
+            id: entry.id,
+            name: entry.name,
+            level: entry.level,
+            custom: true,
+            customData: cloneMonsterEntry(entry.customData),
+          }
+        : {
+            id: entry.id,
+            name: entry.name,
+            level: entry.level,
+            image: entry.image || null,
+            url: entry.url || (entry.id ? `https://2e.aonprd.com/Monsters.aspx?ID=${entry.id}` : null),
+          };
+
+      const key = recentMonsterKey(snapshot);
+      recentMonsters = recentMonsters.filter((m) => recentMonsterKey(m) !== key);
+      recentMonsters.unshift(snapshot);
+      recentMonsters = recentMonsters.slice(0, MAX_RECENT_MONSTERS);
+      saveRecentMonsters();
+      renderRecentMonsters();
+    }
+
+    function renderRecentMonsters() {
+      const list = document.getElementById('recentMonsters');
+      if (!recentMonsters.length) {
+        list.innerHTML = '<span class="recent-empty">Monsters you add will appear here for quick reuse</span>';
+        return;
+      }
+
+      list.innerHTML = recentMonsters.map((m, i) => `
+        <span class="recent-tag" onclick="addRecentToQueue(${i})" title="Add to card list">
+          ${escapeHtml(m.name)}${m.custom ? ' (custom)' : ''}${m.level != null ? ` <span style="color:#888">Lv ${m.level}</span>` : ''}
+          <span class="remove" onclick="removeRecentMonster(event, ${i})" title="Remove from saved">×</span>
+        </span>
+      `).join('');
+    }
+
+    function addMonsterToQueue(entry) {
+      monsters.push(cloneMonsterEntry(entry));
+      rememberRecent(entry);
+      renderMonsterList();
+    }
+
+    function addRecentToQueue(index) {
+      const entry = recentMonsters[index];
+      if (!entry) return;
+      monsters.push(cloneMonsterEntry(entry));
+      rememberRecent(entry);
+      renderMonsterList();
+    }
+
+    function removeRecentMonster(event, index) {
+      event.stopPropagation();
+      recentMonsters.splice(index, 1);
+      saveRecentMonsters();
+      renderRecentMonsters();
+    }
+
+    function openCustomMonsterModal() {
+      document.getElementById('customMonsterModal').classList.add('visible');
+      document.getElementById('customName').focus();
+    }
+
+    function closeCustomMonsterModal() {
+      document.getElementById('customMonsterModal').classList.remove('visible');
+    }
+
+    function formatSaveValue(value) {
+      const s = value.trim();
+      if (!s) return '?';
+      if (s.startsWith('+') || s.startsWith('-')) return s;
+      return `+${s}`;
+    }
+
+    function parseCustomAbilities(text) {
+      return text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const colon = line.indexOf(':');
+          if (colon === -1) return { name: line, desc: '' };
+          return {
+            name: line.slice(0, colon).trim(),
+            desc: line.slice(colon + 1).trim(),
+          };
+        });
+    }
+
+    function parseCustomAttacks(text) {
+      return text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          const parts = line.split(',').map((p) => p.trim());
+          if (parts.length >= 4) {
+            return {
+              name: parts[0],
+              bonus: parts[1].startsWith('+') || parts[1].startsWith('-') ? parts[1] : `+${parts[1]}`,
+              damage: parts[2],
+              reach: parts[3],
+            };
+          }
+          const match = line.match(/^(.+?)\s+([+-]?\d+)\s+(.+?)\s+(Melee|Ranged)$/i);
+          if (match) {
+            const bonus = match[2].startsWith('+') || match[2].startsWith('-') ? match[2] : `+${match[2]}`;
+            return { name: match[1].trim(), bonus, damage: match[3].trim(), reach: match[4] };
+          }
+          return { name: line, bonus: '?', damage: '', reach: 'Melee' };
+        });
+    }
+
+    function parseCustomSpells(spellTitle, spellDc, spellAttack, spellsText) {
+      const dc = spellDc.trim();
+      const attackRaw = spellAttack.trim();
+      const text = spellsText.trim();
+      if (!dc && !attackRaw && !text) return null;
+
+      const ranks = [];
+      if (text) {
+        for (const part of text.split(/[;\n]+/).map((s) => s.trim()).filter(Boolean)) {
+          const colon = part.indexOf(':');
+          if (colon === -1) {
+            ranks.push({ rank: '', spells: part });
+          } else {
+            ranks.push({
+              rank: part.slice(0, colon).trim(),
+              spells: part.slice(colon + 1).trim(),
+            });
+          }
+        }
+      }
+
+      let attack = null;
+      if (attackRaw) {
+        attack = attackRaw.startsWith('+') || attackRaw.startsWith('-') ? attackRaw : `+${attackRaw}`;
+      }
+
+      return {
+        title: spellTitle.trim() || 'Spells',
+        dc: dc || null,
+        attack,
+        ranks,
+      };
+    }
+
+    function buildCustomMonsterFromForm() {
+      const immunities = document.getElementById('customImmunities').value.trim();
+      const resistances = document.getElementById('customResistances').value.trim();
+      const weaknesses = document.getElementById('customWeaknesses').value.trim();
+      const defenses = [];
+      if (immunities) defenses.push({ label: 'Immunities', text: immunities });
+      if (resistances) defenses.push({ label: 'Resistances', text: resistances });
+      if (weaknesses) defenses.push({ label: 'Weaknesses', text: weaknesses });
+
+      const traits = document.getElementById('customTraits').value
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+      const spells = parseCustomSpells(
+        document.getElementById('customSpellTitle').value,
+        document.getElementById('customSpellDc').value,
+        document.getElementById('customSpellAttack').value,
+        document.getElementById('customSpells').value
+      );
+
+      return {
+        id: `custom-${Date.now()}`,
+        name: document.getElementById('customName').value.trim(),
+        level: parseInt(document.getElementById('customLevel').value, 10) || 1,
+        type: document.getElementById('customType').value.trim() || 'Creature',
+        traits,
+        image: null,
+        hp: document.getElementById('customHp').value.trim() || '?',
+        ac: document.getElementById('customAc').value.trim() || '?',
+        fort: formatSaveValue(document.getElementById('customFort').value),
+        ref: formatSaveValue(document.getElementById('customRef').value),
+        will: formatSaveValue(document.getElementById('customWill').value),
+        speed: document.getElementById('customSpeed').value.trim() || '?',
+        skills: document.getElementById('customSkills').value.trim(),
+        defenses,
+        spells: spells && (spells.ranks.length > 0 || spells.dc || spells.attack) ? spells : null,
+        abilities: parseCustomAbilities(document.getElementById('customAbilities').value),
+        attacks: parseCustomAttacks(document.getElementById('customAttacks').value),
+      };
+    }
+
+    function submitCustomMonster(event) {
+      event.preventDefault();
+      const name = document.getElementById('customName').value.trim();
+      if (!name) return;
+
+      const customData = buildCustomMonsterFromForm();
+      addMonsterToQueue({
+        id: customData.id,
+        name: customData.name,
+        level: customData.level,
+        custom: true,
+        customData,
+      });
+
+      document.getElementById('customMonsterForm').reset();
+      document.getElementById('customLevel').value = '1';
+      closeCustomMonsterModal();
+      document.getElementById('status').textContent = `Added custom monster: ${name}`;
     }
 
     async function generateCards() {
@@ -1414,12 +1981,16 @@
       const monsterData = [];
 
       for (const m of monsters) {
+        if (m.custom && m.customData) {
+          monsterData.push(m.customData);
+          continue;
+        }
+
         if (m.id) {
           const data = await fetchMonsterData(m.id);
           if (data) {
             monsterData.push(data);
           } else {
-            // Fallback: use basic info we already have
             monsterData.push({
               name: m.name,
               level: m.level,
@@ -1788,6 +2359,11 @@
       if (e.target.id === 'imageSearchModal') closeImageSearchModal();
     });
 
+    document.getElementById('customMonsterClose').addEventListener('click', closeCustomMonsterModal);
+    document.getElementById('customMonsterModal').addEventListener('click', (e) => {
+      if (e.target.id === 'customMonsterModal') closeCustomMonsterModal();
+    });
+
     // Set up input event listeners
     const monsterInput = document.getElementById('monsterInput');
     monsterInput.addEventListener('input', handleInput);
@@ -1798,7 +2374,9 @@
     });
 
     // Start with empty list
+    loadRecentMonsters();
     renderMonsterList();
+    renderRecentMonsters();
   </script>
 </body>
 </html>
