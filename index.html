@@ -218,12 +218,56 @@
       padding: 0.5in;
       background: #ffffff;
       transform: rotate(180deg);
+      position: relative;
+    }
+
+    .portrait-content {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .card-portrait img {
       max-width: 100%;
       max-height: 6in;
       object-fit: contain;
+    }
+
+    .portrait-replace-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26, 26, 46, 0.45);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .card-portrait:hover .portrait-replace-overlay {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .portrait-replace-btn {
+      padding: 0.55rem 1.1rem;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+      transition: background 0.2s;
+    }
+
+    .portrait-replace-btn:hover {
+      background: #c73e54;
     }
 
     /* Stats section - normal orientation for GM viewing when draped */
@@ -625,6 +669,10 @@
 
     /* Print: hide dotted border, show clean */
     @media print {
+      .portrait-replace-overlay {
+        display: none !important;
+      }
+
       .image-dropzone {
         border: none;
         background: white;
@@ -1292,8 +1340,8 @@
       // Scale stats text to fit all content
       pages.querySelectorAll('.card').forEach(fitCardStats);
 
-      // Set up dropzones for custom image uploads
-      setupAllDropzones();
+      // Set up portrait image replace controls
+      setupAllPortraits();
     }
 
     // Shrink stats font until all content fits within the card half
@@ -1317,16 +1365,21 @@
 
       // Create portrait section - either image or dropzone with placeholder
       const portraitContent = monster.image
-        ? `<img src="${monster.image}" alt="${monster.name}" onerror="showDropzone(this, '${monster.name}')" />`
-        : `<div class="image-dropzone" data-card-id="${cardId}" data-monster-name="${monster.name}">
+        ? `<img src="${monster.image}" alt="${monster.name}" onerror="showPortraitPlaceholder(this)" />`
+        : `<div class="image-dropzone" data-card-id="${cardId}">
              <div class="creature-silhouette"></div>
              <div class="monster-name">${monster.name}</div>
-             <div class="drop-hint"><span class="icon">📷</span> Drop image or click</div>
+             <div class="drop-hint"><span class="icon">📷</span> Drop image or click Replace</div>
            </div>`;
 
       card.innerHTML = `
-        <div class="card-portrait" id="${cardId}">
-          ${portraitContent}
+        <div class="card-portrait" id="${cardId}" data-monster-name="${monster.name}">
+          <div class="portrait-content">
+            ${portraitContent}
+          </div>
+          <div class="portrait-replace-overlay">
+            <button type="button" class="portrait-replace-btn">Replace</button>
+          </div>
         </div>
         <div class="card-stats">
           <div class="stats-header">
@@ -1399,25 +1452,36 @@
       return card;
     }
 
-    // Show dropzone when image fails to load
-    function showDropzone(imgElement, monsterName) {
-      const portrait = imgElement.parentElement;
+    // Show placeholder when image fails to load
+    function showPortraitPlaceholder(imgElement) {
+      const portrait = imgElement.closest('.card-portrait');
+      const content = portrait.querySelector('.portrait-content');
       const cardId = portrait.id;
-      portrait.innerHTML = `
-        <div class="image-dropzone" data-card-id="${cardId}" data-monster-name="${monsterName}">
+      const monsterName = portrait.dataset.monsterName || imgElement.alt;
+      content.innerHTML = `
+        <div class="image-dropzone" data-card-id="${cardId}">
           <div class="creature-silhouette"></div>
           <div class="monster-name">${monsterName}</div>
-          <div class="drop-hint"><span class="icon">📷</span> Drop image or click</div>
+          <div class="drop-hint"><span class="icon">📷</span> Drop image or click Replace</div>
         </div>
       `;
-      setupDropzone(portrait.querySelector('.image-dropzone'));
+      setupDropzone(content.querySelector('.image-dropzone'), portrait);
     }
 
-    // Set up dropzone event handlers
-    function setupDropzone(dropzone) {
+    function promptPortraitImageUpload(portrait) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) handlePortraitImageUpload(portrait, file);
+      };
+      input.click();
+    }
+
+    function setupDropzone(dropzone, portrait) {
       if (!dropzone) return;
 
-      // Drag events
       dropzone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropzone.classList.add('dragover');
@@ -1432,41 +1496,37 @@
         dropzone.classList.remove('dragover');
         const file = e.dataTransfer.files[0];
         if (file && file.type.startsWith('image/')) {
-          handleImageUpload(dropzone, file);
+          handlePortraitImageUpload(portrait, file);
         }
-      });
-
-      // Click to browse
-      dropzone.addEventListener('click', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = (e) => {
-          const file = e.target.files[0];
-          if (file) handleImageUpload(dropzone, file);
-        };
-        input.click();
       });
     }
 
-    // Handle uploaded image
-    function handleImageUpload(dropzone, file) {
+    function setupPortrait(portrait) {
+      const replaceBtn = portrait.querySelector('.portrait-replace-btn');
+      if (replaceBtn) {
+        replaceBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          promptPortraitImageUpload(portrait);
+        });
+      }
+
+      const dropzone = portrait.querySelector('.image-dropzone');
+      if (dropzone) setupDropzone(dropzone, portrait);
+    }
+
+    function handlePortraitImageUpload(portrait, file) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target.result;
-        const portrait = dropzone.closest('.card-portrait');
+        const content = portrait.querySelector('.portrait-content');
+        const monsterName = portrait.dataset.monsterName || 'Monster';
 
-        // Create image to check for transparency/background
         const testImg = new Image();
         testImg.onload = () => {
-          // Check if image has significant background by sampling edges
           const hasBackground = checkImageHasBackground(testImg);
-
-          // Replace dropzone with image container
-          // Note: The portrait is already rotated 180deg, so we don't need to flip the image itself
-          portrait.innerHTML = `
+          content.innerHTML = `
             <div class="custom-image-container${hasBackground ? ' has-vignette' : ''}">
-              <img src="${dataUrl}" alt="Custom image" />
+              <img src="${dataUrl}" alt="${monsterName}" />
             </div>
           `;
         };
@@ -1523,9 +1583,8 @@
       }
     }
 
-    // Set up dropzones after cards are generated
-    function setupAllDropzones() {
-      document.querySelectorAll('.image-dropzone').forEach(setupDropzone);
+    function setupAllPortraits() {
+      document.querySelectorAll('.card-portrait').forEach(setupPortrait);
     }
 
     // Set up input event listeners
