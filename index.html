@@ -325,6 +325,18 @@
       border-left: 2px solid #d4d0c6;
     }
 
+    .defenses-section {
+      font-size: 0.9375em;
+      line-height: 1.3;
+      margin-bottom: 0.06in;
+    }
+
+    .defense-row {
+      margin-bottom: 0.04in;
+      padding-left: 0.08in;
+      border-left: 2px solid #d4d0c6;
+    }
+
     .abilities-section {
       font-size: 0.9375em;
       line-height: 1.35;
@@ -371,6 +383,23 @@
     .attack-bonus {
       color: #7b2d3f;
       font-weight: bold;
+    }
+
+    .spells-section {
+      border-top: 2px solid #d4d0c6;
+      padding-top: 0.08in;
+      margin-top: 0.08in;
+    }
+
+    .spell-rank {
+      font-size: 0.9375em;
+      margin-bottom: 0.04in;
+      line-height: 1.3;
+    }
+
+    .spell-rank-label {
+      font-weight: bold;
+      color: #7b2d3f;
     }
 
     /* Print styles */
@@ -673,6 +702,18 @@
         will: "+24",
         speed: "70 ft., fly 140 ft.",
         skills: "Perception +24, Acrobatics +27, Arcana +28, Deception +26, Diplomacy +24",
+        defenses: [
+          { label: 'Immunities', text: 'drained, paralyzed, sleep' }
+        ],
+        spells: {
+          title: 'Arcane Spontaneous Spells',
+          dc: '36',
+          attack: '+28',
+          ranks: [
+            { rank: 'Cantrips (7th)', spells: 'Detect Magic, Read Aura' },
+            { rank: '7th', spells: 'Chain Lightning, Fireball, Force Barrage, Slither, Unfettered Movement, Warp Mind (2 slots)' }
+          ]
+        },
         abilities: [
           { name: "Aura of Disruption", desc: "30 ft. When a spell is counteracted within the aura, the dragon regains a spell slot." },
           { name: "Disruptive Breath", desc: "40-foot cone, 13d6 force, DC 34. Failed: stupefied 2." }
@@ -720,6 +761,18 @@
       }));
     }
 
+    // Strip AoN markdown links and HTML to plain text
+    function cleanMarkdownText(text) {
+      if (!text) return '';
+      return text
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/<actions[^>]*\/>/g, '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\r/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
     // Format skills as a single comma-separated line
     function formatSkills(perception, skillMarkdown, skillMod) {
       if (skillMarkdown) {
@@ -746,6 +799,97 @@
         }
       }
       return parts.join(', ');
+    }
+
+    // Format immunities, resistances, and weaknesses
+    function formatDefenses(src) {
+      const defenses = [];
+
+      const immunity = cleanMarkdownText(src.immunity_markdown) ||
+        (src.immunity?.length ? src.immunity.join(', ') : '');
+      if (immunity) defenses.push({ label: 'Immunities', text: immunity });
+
+      const resistance = cleanMarkdownText(src.resistance_markdown) ||
+        formatDefenseObject(src.resistance);
+      if (resistance) defenses.push({ label: 'Resistances', text: resistance });
+
+      const weakness = cleanMarkdownText(src.weakness_markdown) ||
+        formatDefenseObject(src.weakness);
+      if (weakness) defenses.push({ label: 'Weaknesses', text: weakness });
+
+      return defenses;
+    }
+
+    function formatDefenseObject(obj) {
+      if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) return '';
+      return Object.entries(obj)
+        .map(([key, val]) => `${key.replace(/_/g, ' ')} ${val}`)
+        .join(', ');
+    }
+
+    // Parse spell lists with ranks from creature markdown
+    function parseSpells(markdown) {
+      if (!markdown) return null;
+
+      const headerMatch = markdown.match(/\*\*([^*]*Spells[^*]*)\*\*\s*([^\n\r]*)/i);
+      if (!headerMatch) return null;
+
+      const title = headerMatch[1].trim();
+      const headerExtra = headerMatch[2] || '';
+      let dc = (headerExtra.match(/DC\s*(\d+)/i) || [])[1] || null;
+      let attack = (headerExtra.match(/attack\s*\+(\d+)/i) || [])[1] || null;
+      if (attack) attack = `+${attack}`;
+
+      const startIdx = headerMatch.index + headerMatch[0].length;
+      const rest = markdown.slice(startIdx);
+      const endMatch = rest.match(/\r?\n\*\*(?=[A-Za-z])/);
+      const spellBlock = endMatch ? rest.slice(0, endMatch.index) : rest;
+
+      const ranks = [];
+      const rankPattern = /-\s*\*\*([^*]+)\*\*\s*\r?\n([\s\S]*?)(?=\r?\n-\s*\*\*|\r?\n\*\*(?=[A-Za-z])|$)/g;
+      let rankMatch;
+      while ((rankMatch = rankPattern.exec(spellBlock)) !== null) {
+        const spells = cleanMarkdownText(rankMatch[2]);
+        if (spells) ranks.push({ rank: rankMatch[1].trim(), spells });
+      }
+
+      if (ranks.length === 0) return null;
+      return { title, dc, attack, ranks };
+    }
+
+    function buildSpellData(markdown, src) {
+      let spells = parseSpells(markdown);
+
+      if (!spells && !src.spell?.length && !src.spell_markdown && !src.spell_dc?.length) {
+        return null;
+      }
+
+      if (!spells) {
+        spells = { title: 'Spells', dc: null, attack: null, ranks: [] };
+      }
+
+      if (!spells.dc && src.spell_dc?.[0] != null) spells.dc = String(src.spell_dc[0]);
+      if (!spells.attack && src.spell_attack_bonus?.[0] != null) {
+        spells.attack = `+${src.spell_attack_bonus[0]}`;
+      }
+
+      if (spells.ranks.length === 0 && (src.spell_markdown || src.spell?.length)) {
+        spells.ranks = [{
+          rank: '',
+          spells: cleanMarkdownText(src.spell_markdown || src.spell.join(', '))
+        }];
+      }
+
+      if (spells.ranks.length === 0 && !spells.dc) return null;
+      return spells;
+    }
+
+    function formatSpellHeader(spells) {
+      const parts = [];
+      if (spells.dc) parts.push(`DC ${spells.dc}`);
+      if (spells.attack) parts.push(`attack ${spells.attack}`);
+      const meta = parts.length ? ` (${parts.join(', ')})` : '';
+      return (spells.title || 'Spells') + meta;
     }
 
     // Parse abilities with descriptions from markdown
@@ -844,7 +988,9 @@
         size: 1,
         _source: ['name', 'level', 'image', 'hp', 'ac', 'fortitude_save', 'reflex_save', 'will_save',
                   'perception', 'skill_mod', 'skill_markdown', 'speed_raw', 'creature_ability', 'trait',
-                  'size', 'rarity', 'creature_family', 'markdown']
+                  'size', 'rarity', 'creature_family', 'markdown', 'spell', 'spell_markdown', 'spell_dc',
+                  'spell_attack_bonus', 'immunity', 'immunity_markdown', 'resistance', 'resistance_markdown',
+                  'weakness', 'weakness_markdown']
       };
 
       const response = await fetch(ES_URL, {
@@ -882,6 +1028,8 @@
         will: src.will_save ? `+${src.will_save}` : '?',
         speed: src.speed_raw || '?',
         skills: formatSkills(src.perception, src.skill_markdown, src.skill_mod),
+        defenses: formatDefenses(src),
+        spells: buildSpellData(markdown, src),
         abilities: parseAbilities(markdown, abilityNames),
         attacks: parseAttacks(markdown)
       };
@@ -1085,7 +1233,7 @@
               traits: [],
               image: m.image,
               hp: '?', ac: '?', fort: '?', ref: '?', will: '?',
-              speed: '?', skills: '', abilities: [], attacks: []
+              speed: '?', skills: '', defenses: [], spells: null, abilities: [], attacks: []
             });
           }
         }
@@ -1180,6 +1328,14 @@
             <div class="stat-block"><span class="stat-label">Will</span> ${monster.will}</div>
           </div>
 
+          ${monster.defenses?.length ? `
+          <div class="defenses-section">
+            ${monster.defenses.map(d => `
+              <div class="defense-row"><span class="stat-label">${d.label}</span> ${d.text}</div>
+            `).join('')}
+          </div>
+          ` : ''}
+
           <div class="stat-row">
             <div class="stat-block"><span class="stat-label">Speed</span> ${monster.speed}</div>
           </div>
@@ -1209,6 +1365,17 @@
               </div>
             `).join('')}
           </div>
+
+          ${monster.spells ? `
+          <div class="spells-section">
+            <div class="attacks-section-title">${formatSpellHeader(monster.spells)}</div>
+            ${monster.spells.ranks.map(r => `
+              <div class="spell-rank">
+                ${r.rank ? `<span class="spell-rank-label">${r.rank}:</span> ` : ''}${r.spells}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
         </div>
       `;
 
