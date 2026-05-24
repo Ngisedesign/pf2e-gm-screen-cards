@@ -179,10 +179,10 @@
       color: #e94560;
     }
 
-    /* Print Layout - Portrait orientation, 2 cards side by side */
+    /* Print Layout - Legal portrait, 2 cards side by side */
     .print-page {
       width: 8.5in;
-      height: 11in;
+      height: 14in;
       background: white;
       margin: 1rem auto;
       display: flex;
@@ -192,7 +192,7 @@
 
     .card {
       width: 4.25in;
-      height: 11in;
+      height: 14in;
       display: flex;
       flex-direction: column;
       position: relative;
@@ -210,7 +210,7 @@
       Both halves folded over the screen top
     */
     .card-portrait {
-      height: 5.5in;
+      height: 7in;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -222,13 +222,13 @@
 
     .card-portrait img {
       max-width: 100%;
-      max-height: 4.5in;
+      max-height: 6in;
       object-fit: contain;
     }
 
     /* Stats section - normal orientation for GM viewing when draped */
     .card-stats {
-      height: 5.5in;
+      height: 7in;
       padding: 0.25in;
       background: #ffffff;
       color: #1a1a1a;
@@ -253,14 +253,14 @@
     }
 
     .stats-header .name {
-      font-size: 14pt;
+      font-size: 1.75em;
       font-weight: bold;
       color: #7b2d3f;
       line-height: 1.1;
     }
 
     .stats-header .type-line {
-      font-size: 9pt;
+      font-size: 1.125em;
       color: #555;
       font-style: italic;
       margin-top: 2px;
@@ -272,7 +272,7 @@
       padding: 0.08in 0.12in;
       border-radius: 4px;
       font-weight: bold;
-      font-size: 11pt;
+      font-size: 1.375em;
       white-space: nowrap;
     }
 
@@ -287,7 +287,7 @@
       background: transparent;
       padding: 0.04in 0.1in;
       border-radius: 3px;
-      font-size: 8pt;
+      font-size: 1em;
       border-left: 3px solid #7b2d3f;
     }
 
@@ -308,7 +308,7 @@
       color: white;
       padding: 0.03in 0.08in;
       border-radius: 3px;
-      font-size: 7pt;
+      font-size: 0.875em;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
@@ -317,10 +317,16 @@
     .trait.uncommon { background: #cc6600; }
     .trait.unique { background: #9900cc; }
 
+    .skills-row {
+      font-size: 0.9375em;
+      line-height: 1.3;
+      margin-bottom: 0.06in;
+      padding-left: 0.08in;
+      border-left: 2px solid #d4d0c6;
+    }
+
     .abilities-section {
-      flex: 1;
-      overflow: hidden;
-      font-size: 7.5pt;
+      font-size: 0.9375em;
       line-height: 1.35;
       margin-top: 0.08in;
     }
@@ -339,18 +345,18 @@
     .attacks-section {
       border-top: 2px solid #d4d0c6;
       padding-top: 0.08in;
-      margin-top: auto;
+      margin-top: 0.08in;
     }
 
     .attacks-section-title {
       font-weight: bold;
       color: #7b2d3f;
-      font-size: 8pt;
+      font-size: 1em;
       margin-bottom: 0.04in;
     }
 
     .attack {
-      font-size: 7.5pt;
+      font-size: 0.9375em;
       margin-bottom: 0.04in;
       display: flex;
       gap: 0.1in;
@@ -369,6 +375,11 @@
 
     /* Print styles */
     @media print {
+      @page {
+        size: 8.5in 14in;
+        margin: 0;
+      }
+
       body {
         background: white;
       }
@@ -625,7 +636,7 @@
         <li>Paste an AoN monster URL (e.g., https://2e.aonprd.com/Monsters.aspx?ID=2945)</li>
         <li>Or type a monster name to search</li>
         <li>Add multiple monsters, then click Generate</li>
-        <li>Print on letter paper, cut in half, fold over GM screen</li>
+        <li>Print on legal paper (8.5×14), cut in half, fold over GM screen</li>
       </ol>
     </div>
   </section>
@@ -661,6 +672,7 @@
         ref: "+27",
         will: "+24",
         speed: "70 ft., fly 140 ft.",
+        skills: "Perception +24, Acrobatics +27, Arcana +28, Deception +26, Diplomacy +24",
         abilities: [
           { name: "Aura of Disruption", desc: "30 ft. When a spell is counteracted within the aura, the dragon regains a spell slot." },
           { name: "Disruptive Breath", desc: "40-foot cone, 13d6 force, DC 34. Failed: stupefied 2." }
@@ -708,10 +720,38 @@
       }));
     }
 
+    // Format skills as a single comma-separated line
+    function formatSkills(perception, skillMarkdown, skillMod) {
+      if (skillMarkdown) {
+        let text = skillMarkdown
+          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+          .replace(/<[^>]+>/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (perception != null && !/perception/i.test(text)) {
+          text = `Perception +${perception}, ${text}`;
+        }
+        return text;
+      }
+
+      const parts = [];
+      if (perception != null) {
+        parts.push(`Perception +${perception}`);
+      }
+      if (skillMod && typeof skillMod === 'object') {
+        for (const [key, val] of Object.entries(skillMod).sort(([a], [b]) => a.localeCompare(b))) {
+          if (key === 'perception' || val == null) continue;
+          const name = key.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+          parts.push(`${name} +${val}`);
+        }
+      }
+      return parts.join(', ');
+    }
+
     // Parse abilities with descriptions from markdown
     function parseAbilities(markdown, abilityNames) {
       const abilities = [];
-      for (const name of abilityNames.slice(0, 3)) {
+      for (const name of abilityNames) {
         // Look for ability pattern - handles both **Name** and **[Name](link)** formats
         const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         // Match either **Name** or **[Name](/link)** - stop at next ability, <br />, newlines, or ---
@@ -728,8 +768,6 @@
             .replace(/<[^>]+>/g, '') // Remove remaining HTML
             .replace(/\s+/g, ' ') // Collapse whitespace
             .trim();
-          // Truncate if too long
-          if (desc.length > 150) desc = desc.substring(0, 147) + '...';
           abilities.push({ name, desc });
         } else {
           abilities.push({ name, desc: '' });
@@ -744,7 +782,7 @@
       // Match Melee or Ranged attacks: **Melee/Ranged** <actions/> weapon +bonus ... **Damage** dice
       const attackPattern = /\*\*(Melee|Ranged)\*\*[^*]*?([a-z][a-z\s]+)\s*\+(\d+)[^*]*?\*\*Damage\*\*\s*([^\n]+)/gi;
       let match;
-      while ((match = attackPattern.exec(markdown)) !== null && attacks.length < 3) {
+      while ((match = attackPattern.exec(markdown)) !== null) {
         const type = match[1];
         const name = match[2].trim();
         const bonus = `+${match[3]}`;
@@ -752,7 +790,6 @@
           .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Convert links to text
           .replace(/<[^>]+>/g, '') // Remove HTML
           .trim();
-        if (damage.length > 40) damage = damage.substring(0, 37) + '...';
         attacks.push({ name: name.charAt(0).toUpperCase() + name.slice(1), bonus, damage, reach: type });
       }
       return attacks;
@@ -806,7 +843,8 @@
         },
         size: 1,
         _source: ['name', 'level', 'image', 'hp', 'ac', 'fortitude_save', 'reflex_save', 'will_save',
-                  'speed_raw', 'creature_ability', 'trait', 'size', 'rarity', 'creature_family', 'markdown']
+                  'perception', 'skill_mod', 'skill_markdown', 'speed_raw', 'creature_ability', 'trait',
+                  'size', 'rarity', 'creature_family', 'markdown']
       };
 
       const response = await fetch(ES_URL, {
@@ -843,6 +881,7 @@
         ref: src.reflex_save ? `+${src.reflex_save}` : '?',
         will: src.will_save ? `+${src.will_save}` : '?',
         speed: src.speed_raw || '?',
+        skills: formatSkills(src.perception, src.skill_markdown, src.skill_mod),
         abilities: parseAbilities(markdown, abilityNames),
         attacks: parseAttacks(markdown)
       };
@@ -1046,7 +1085,7 @@
               traits: [],
               image: m.image,
               hp: '?', ac: '?', fort: '?', ref: '?', will: '?',
-              speed: '?', abilities: [], attacks: []
+              speed: '?', skills: '', abilities: [], attacks: []
             });
           }
         }
@@ -1081,8 +1120,25 @@
       preview.style.display = 'block';
       preview.scrollIntoView({ behavior: 'smooth' });
 
+      // Scale stats text to fit all content
+      pages.querySelectorAll('.card').forEach(fitCardStats);
+
       // Set up dropzones for custom image uploads
       setupAllDropzones();
+    }
+
+    // Shrink stats font until all content fits within the card half
+    function fitCardStats(card) {
+      const stats = card.querySelector('.card-stats');
+      if (!stats) return;
+
+      let size = 8;
+      stats.style.fontSize = size + 'pt';
+
+      while (stats.scrollHeight > stats.clientHeight + 1 && size > 4) {
+        size -= 0.25;
+        stats.style.fontSize = size + 'pt';
+      }
     }
 
     function createCard(monster) {
@@ -1127,6 +1183,12 @@
           <div class="stat-row">
             <div class="stat-block"><span class="stat-label">Speed</span> ${monster.speed}</div>
           </div>
+
+          ${monster.skills ? `
+          <div class="skills-row">
+            <span class="stat-label">Skills</span> ${monster.skills}
+          </div>
+          ` : ''}
 
           <div class="abilities-section">
             ${monster.abilities.map(a => `
