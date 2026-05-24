@@ -1,78 +1,77 @@
 import { serve, file } from "bun";
 
 const ES_URL = "https://elasticsearch.aonprd.com/aon/_search";
-const DDG_HEADERS = {
+const HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
-  Referer: "https://duckduckgo.com/",
 };
 
-const VQD_PATTERNS = [
-  /vqd=['"]([\d-]+)['"]/,
-  /vqd=([\d-]+)/,
-  /name="vqd"\s+value="([\d-]+)"/,
-];
-
-function extractVqd(html: string) {
-  for (const pattern of VQD_PATTERNS) {
-    const match = html.match(pattern);
-    if (match) return match[1];
-  }
-  return null;
+function decodeHtml(text: string) {
+  return text
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
 
-async function fetchVqdFromHtmlSearch(query: string) {
-  const body = new URLSearchParams({ q: query, b: "", kl: "us-en" });
-  const response = await fetch("https://html.duckduckgo.com/html/", {
-    method: "POST",
-    headers: { ...DDG_HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
-    body,
+function dedupeResults(results: Array<{ image: string }>) {
+  const seen = new Set<string>();
+  return results.filter((result) => {
+    if (!result.image || seen.has(result.image)) return false;
+    seen.add(result.image);
+    return true;
   });
-  if (!response.ok) throw new Error(`HTML search init failed (${response.status})`);
-  const html = await response.text();
-  const vqd = extractVqd(html);
-  if (!vqd) throw new Error("Could not parse image search token from HTML search");
-  return vqd;
 }
 
-async function fetchVqdFromMainSearch(query: string) {
+async function searchBingImages(query: string) {
   const encoded = encodeURIComponent(query);
-  const response = await fetch(`https://duckduckgo.com/?q=${encoded}&iax=images&ia=images`, {
-    headers: DDG_HEADERS,
-  });
-  if (!response.ok) throw new Error(`Image search init failed (${response.status})`);
-  const html = await response.text();
-  const vqd = extractVqd(html);
-  if (!vqd) throw new Error("Could not parse image search token from main search");
-  return vqd;
-}
+  const response = await fetch(
+    `https://www.bing.com/images/search?q=${encoded}&qft=+filterui:photo-photo&form=IRFLTR&first=1`,
+    { headers: HEADERS }
+  );
+  if (!response.ok) throw new Error(`Bing search failed (${response.status})`);
 
-async function getVqd(query: string) {
-  try {
-    return await fetchVqdFromHtmlSearch(query);
-  } catch {
-    return fetchVqdFromMainSearch(query);
+  const html = await response.text();
+  const results: Array<{ title: string; image: string; thumbnail: string; source: string }> = [];
+  const richPattern =
+    /murl&quot;:&quot;([^&]+?)&quot;.*?turl&quot;:&quot;([^&]+?)&quot;(?:.*?desc&quot;:&quot;([^&]*?)&quot;)?/g;
+  let match: RegExpExecArray | null;
+  while ((match = richPattern.exec(html)) !== null && results.length < 5) {
+    results.push({
+      title: decodeHtml(match[3] || query),
+      image: decodeHtml(match[1]),
+      thumbnail: decodeHtml(match[2]),
+      source: "",
+    });
   }
+
+  if (results.length === 0) {
+    const murls = [...html.matchAll(/murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/g)].map((m) => m[1]);
+    const turls = [...html.matchAll(/turl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/g)].map((m) => m[1]);
+    for (let i = 0; i < Math.min(murls.length, 5); i++) {
+      results.push({
+        title: query,
+        image: decodeHtml(murls[i]),
+        thumbnail: decodeHtml(turls[i] || murls[i]),
+        source: "",
+      });
+    }
+  }
+
+  return dedupeResults(results).slice(0, 5);
 }
 
 async function searchImages(query: string) {
-  const encoded = encodeURIComponent(query);
-  const vqd = await getVqd(query);
-  const jsonRes = await fetch(
-    `https://duckduckgo.com/i.js?l=us-en&o=json&q=${encoded}&vqd=${vqd}&f=,,,,,&p=1`,
-    { headers: DDG_HEADERS }
-  );
-  if (!jsonRes.ok) throw new Error(`Image search failed (${jsonRes.status})`);
-
-  const data = await jsonRes.json();
-  return (data.results || []).slice(0, 5).map((result: any) => ({
-    title: result.title || "",
-    image: result.image,
-    thumbnail: result.thumbnail || result.image,
-    source: result.url || "",
-  }));
+  try {
+    const bingResults = await searchBingImages(query);
+    if (bingResults.length > 0) return bingResults;
+  } catch {
+    // fall through
+  }
+  throw new Error("No images found. Try Replace to upload your own.");
 }
 
 serve({
