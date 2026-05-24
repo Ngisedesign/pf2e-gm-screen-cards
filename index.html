@@ -1649,7 +1649,7 @@
           });
         });
       } catch (err) {
-        results.innerHTML = `<div class="image-search-error">Search failed: ${escapeHtml(err.message)}</div>`;
+        results.innerHTML = `<div class="image-search-error">${escapeHtml(err.message)}</div>`;
       }
     }
 

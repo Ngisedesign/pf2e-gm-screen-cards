@@ -1,23 +1,68 @@
 import { serve, file } from "bun";
 
 const ES_URL = "https://elasticsearch.aonprd.com/aon/_search";
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const DDG_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  Referer: "https://duckduckgo.com/",
+};
+
+const VQD_PATTERNS = [
+  /vqd=['"]([\d-]+)['"]/,
+  /vqd=([\d-]+)/,
+  /name="vqd"\s+value="([\d-]+)"/,
+];
+
+function extractVqd(html: string) {
+  for (const pattern of VQD_PATTERNS) {
+    const match = html.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+async function fetchVqdFromHtmlSearch(query: string) {
+  const body = new URLSearchParams({ q: query, b: "", kl: "us-en" });
+  const response = await fetch("https://html.duckduckgo.com/html/", {
+    method: "POST",
+    headers: { ...DDG_HEADERS, "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!response.ok) throw new Error(`HTML search init failed (${response.status})`);
+  const html = await response.text();
+  const vqd = extractVqd(html);
+  if (!vqd) throw new Error("Could not parse image search token from HTML search");
+  return vqd;
+}
+
+async function fetchVqdFromMainSearch(query: string) {
+  const encoded = encodeURIComponent(query);
+  const response = await fetch(`https://duckduckgo.com/?q=${encoded}&iax=images&ia=images`, {
+    headers: DDG_HEADERS,
+  });
+  if (!response.ok) throw new Error(`Image search init failed (${response.status})`);
+  const html = await response.text();
+  const vqd = extractVqd(html);
+  if (!vqd) throw new Error("Could not parse image search token from main search");
+  return vqd;
+}
+
+async function getVqd(query: string) {
+  try {
+    return await fetchVqdFromHtmlSearch(query);
+  } catch {
+    return fetchVqdFromMainSearch(query);
+  }
+}
 
 async function searchImages(query: string) {
   const encoded = encodeURIComponent(query);
-  const htmlRes = await fetch(`https://duckduckgo.com/?q=${encoded}&iax=images&ia=images`, {
-    headers: { "User-Agent": USER_AGENT },
-  });
-  if (!htmlRes.ok) throw new Error(`Image search init failed (${htmlRes.status})`);
-
-  const html = await htmlRes.text();
-  const vqdMatch = html.match(/vqd=([\d-]+)/);
-  if (!vqdMatch) throw new Error("Could not initialize image search");
-
+  const vqd = await getVqd(query);
   const jsonRes = await fetch(
-    `https://duckduckgo.com/i.js?l=us-en&o=json&q=${encoded}&vqd=${vqdMatch[1]}&f=,,,,,&p=1`,
-    { headers: { "User-Agent": USER_AGENT } }
+    `https://duckduckgo.com/i.js?l=us-en&o=json&q=${encoded}&vqd=${vqd}&f=,,,,,&p=1`,
+    { headers: DDG_HEADERS }
   );
   if (!jsonRes.ok) throw new Error(`Image search failed (${jsonRes.status})`);
 
