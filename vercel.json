@@ -8,12 +8,20 @@
     {
       "src": "api/search.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/image-search.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/search",
       "dest": "/api/search.js"
+    },
+    {
+      "src": "/api/image-search",
+      "dest": "/api/image-search.js"
     },
     {
       "src": "/(.*)",

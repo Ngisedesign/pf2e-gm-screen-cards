@@ -239,8 +239,10 @@
       position: absolute;
       inset: 0;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: 0.45rem;
       background: rgba(26, 26, 46, 0.45);
       opacity: 0;
       transition: opacity 0.2s;
@@ -254,7 +256,8 @@
       pointer-events: auto;
     }
 
-    .portrait-replace-btn {
+    .portrait-replace-btn,
+    .portrait-find-btn {
       padding: 0.55rem 1.1rem;
       background: #e94560;
       color: white;
@@ -267,8 +270,117 @@
       transition: background 0.2s;
     }
 
+    .portrait-find-btn {
+      background: #16213e;
+      border: 2px solid #e94560;
+    }
+
     .portrait-replace-btn:hover {
       background: #c73e54;
+    }
+
+    .portrait-find-btn:hover {
+      background: #1f2a4a;
+    }
+
+    .image-search-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .image-search-modal.visible {
+      display: flex;
+    }
+
+    .image-search-panel {
+      background: #16213e;
+      border: 2px solid #e94560;
+      border-radius: 12px;
+      width: min(720px, 100%);
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+
+    .image-search-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #333;
+    }
+
+    .image-search-header h3 {
+      color: #e94560;
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .image-search-close {
+      background: none;
+      border: none;
+      color: #888;
+      font-size: 1.5rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0.25rem;
+    }
+
+    .image-search-close:hover {
+      color: #eee;
+    }
+
+    .image-search-results {
+      padding: 1.25rem;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .image-search-loading,
+    .image-search-empty,
+    .image-search-error {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #888;
+      font-style: italic;
+      padding: 2rem 1rem;
+    }
+
+    .image-search-error {
+      color: #e94560;
+    }
+
+    .image-search-option {
+      background: #1a1a2e;
+      border: 2px solid #333;
+      border-radius: 8px;
+      padding: 0;
+      cursor: pointer;
+      overflow: hidden;
+      transition: border-color 0.2s, transform 0.2s;
+      aspect-ratio: 1;
+    }
+
+    .image-search-option:hover {
+      border-color: #e94560;
+      transform: scale(1.02);
+    }
+
+    .image-search-option img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
     }
 
     /* Stats section - normal orientation for GM viewing when draped */
@@ -670,7 +782,8 @@
 
     /* Print: hide dotted border, show clean */
     @media print {
-      .portrait-replace-overlay {
+      .portrait-replace-overlay,
+      .image-search-modal {
         display: none !important;
       }
 
@@ -729,12 +842,23 @@
     <div id="pages"></div>
   </section>
 
+  <div id="imageSearchModal" class="image-search-modal">
+    <div class="image-search-panel">
+      <div class="image-search-header">
+        <h3 id="imageSearchTitle">Find image</h3>
+        <button type="button" class="image-search-close" id="imageSearchClose" aria-label="Close">&times;</button>
+      </div>
+      <div class="image-search-results" id="imageSearchResults"></div>
+    </div>
+  </div>
+
   <script>
     const monsters = [];
     const monsterCache = new Map();
     let searchTimeout = null;
     let selectedIndex = -1;
     let currentResults = [];
+    let activePortraitForSearch = null;
 
     // Sample monster data for card generation (placeholder until scraper is built)
     const sampleMonsters = {
@@ -1380,6 +1504,7 @@
           </div>
           <div class="portrait-replace-overlay">
             <button type="button" class="portrait-replace-btn">Replace</button>
+            <button type="button" class="portrait-find-btn">Find Image</button>
           </div>
         </div>
         <div class="card-stats">
@@ -1453,6 +1578,81 @@
       return card;
     }
 
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function applyPortraitImage(portrait, src) {
+      const content = portrait.querySelector('.portrait-content');
+      const monsterName = portrait.dataset.monsterName || 'Monster';
+
+      const finish = (hasBackground) => {
+        content.innerHTML = `
+          <div class="custom-image-container${hasBackground ? ' has-vignette' : ''}">
+            <img src="${src}" alt="${escapeHtml(monsterName)}" />
+          </div>
+        `;
+      };
+
+      const probe = new Image();
+      probe.crossOrigin = 'anonymous';
+      probe.onload = () => finish(checkImageHasBackground(probe));
+      probe.onerror = () => finish(false);
+      probe.src = src;
+    }
+
+    function closeImageSearchModal() {
+      document.getElementById('imageSearchModal').classList.remove('visible');
+      activePortraitForSearch = null;
+    }
+
+    async function openImageSearch(portrait) {
+      activePortraitForSearch = portrait;
+      const modal = document.getElementById('imageSearchModal');
+      const results = document.getElementById('imageSearchResults');
+      const monsterName = portrait.dataset.monsterName || 'Monster';
+
+      document.getElementById('imageSearchTitle').textContent = `Find image: ${monsterName}`;
+      results.innerHTML = '<div class="image-search-loading">Searching...</div>';
+      modal.classList.add('visible');
+
+      try {
+        const query = encodeURIComponent(`${monsterName} pathfinder 2e`);
+        const response = await fetch(`/api/image-search?q=${query}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Search failed');
+        }
+
+        if (!data.results?.length) {
+          results.innerHTML = '<div class="image-search-empty">No images found. Try Replace to upload your own.</div>';
+          return;
+        }
+
+        results.innerHTML = data.results.map((result) => `
+          <button type="button" class="image-search-option" data-url="${escapeHtml(result.image)}" title="${escapeHtml(result.title)}">
+            <img src="${escapeHtml(result.thumbnail || result.image)}" alt="${escapeHtml(result.title)}" loading="lazy" />
+          </button>
+        `).join('');
+
+        results.querySelectorAll('.image-search-option').forEach((button) => {
+          button.addEventListener('click', () => {
+            if (activePortraitForSearch) {
+              applyPortraitImage(activePortraitForSearch, button.dataset.url);
+            }
+            closeImageSearchModal();
+          });
+        });
+      } catch (err) {
+        results.innerHTML = `<div class="image-search-error">Search failed: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
     // Show placeholder when image fails to load
     function showPortraitPlaceholder(imgElement) {
       const portrait = imgElement.closest('.card-portrait');
@@ -1511,6 +1711,14 @@
         });
       }
 
+      const findBtn = portrait.querySelector('.portrait-find-btn');
+      if (findBtn) {
+        findBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openImageSearch(portrait);
+        });
+      }
+
       const dropzone = portrait.querySelector('.image-dropzone');
       if (dropzone) setupDropzone(dropzone, portrait);
     }
@@ -1518,20 +1726,7 @@
     function handlePortraitImageUpload(portrait, file) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        const content = portrait.querySelector('.portrait-content');
-        const monsterName = portrait.dataset.monsterName || 'Monster';
-
-        const testImg = new Image();
-        testImg.onload = () => {
-          const hasBackground = checkImageHasBackground(testImg);
-          content.innerHTML = `
-            <div class="custom-image-container${hasBackground ? ' has-vignette' : ''}">
-              <img src="${dataUrl}" alt="${monsterName}" />
-            </div>
-          `;
-        };
-        testImg.src = dataUrl;
+        applyPortraitImage(portrait, e.target.result);
       };
       reader.readAsDataURL(file);
     }
@@ -1587,6 +1782,11 @@
     function setupAllPortraits() {
       document.querySelectorAll('.card-portrait').forEach(setupPortrait);
     }
+
+    document.getElementById('imageSearchClose').addEventListener('click', closeImageSearchModal);
+    document.getElementById('imageSearchModal').addEventListener('click', (e) => {
+      if (e.target.id === 'imageSearchModal') closeImageSearchModal();
+    });
 
     // Set up input event listeners
     const monsterInput = document.getElementById('monsterInput');
