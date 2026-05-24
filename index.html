@@ -710,8 +710,8 @@
           dc: '36',
           attack: '+28',
           ranks: [
-            { rank: 'Cantrips (7th)', spells: 'Detect Magic, Read Aura' },
-            { rank: '7th', spells: 'Chain Lightning, Fireball, Force Barrage, Slither, Unfettered Movement, Warp Mind (2 slots)' }
+            { rank: '7th', spells: 'Chain Lightning, Fireball, Force Barrage, Slither, Unfettered Movement, Warp Mind (2 slots)' },
+            { rank: 'Cantrips (7th)', spells: 'Detect Magic, Read Aura' }
           ]
         },
         abilities: [
@@ -831,7 +831,7 @@
     function parseSpells(markdown) {
       if (!markdown) return null;
 
-      const headerMatch = markdown.match(/\*\*([^*]*Spells[^*]*)\*\*\s*([^\n\r]*)/i);
+      const headerMatch = markdown.match(/\*\*([^*\n]*Spells[^*\n]*)\*\*\s*([^\n\r]*)/i);
       if (!headerMatch) return null;
 
       const title = headerMatch[1].trim();
@@ -854,7 +854,28 @@
       }
 
       if (ranks.length === 0) return null;
-      return { title, dc, attack, ranks };
+      return { title, dc, attack, ranks: sortSpellRanks(ranks) };
+    }
+
+    function sortSpellRanks(ranks) {
+      const cantrips = [];
+      const numeric = [];
+
+      for (const rank of ranks) {
+        if (/cantrip/i.test(rank.rank)) {
+          cantrips.push(rank);
+        } else {
+          const sortKey = parseInt(rank.rank.match(/(\d+)/)?.[1] || '0', 10);
+          numeric.push({ ...rank, sortKey });
+        }
+      }
+
+      numeric.sort((a, b) => b.sortKey - a.sortKey);
+      return [...numeric.map(({ rank, spells }) => ({ rank, spells })), ...cantrips];
+    }
+
+    function formatSpellsCompact(spells) {
+      return spells.ranks.map(r => `${r.rank} ${r.spells.toLowerCase()}`).join('; ');
     }
 
     function buildSpellData(markdown, src) {
@@ -1369,11 +1390,7 @@
           ${monster.spells ? `
           <div class="spells-section">
             <div class="attacks-section-title">${formatSpellHeader(monster.spells)}</div>
-            ${monster.spells.ranks.map(r => `
-              <div class="spell-rank">
-                ${r.rank ? `<span class="spell-rank-label">${r.rank}:</span> ` : ''}${r.spells}
-              </div>
-            `).join('')}
+            <div class="spell-rank">${formatSpellsCompact(monster.spells)}</div>
           </div>
           ` : ''}
         </div>
