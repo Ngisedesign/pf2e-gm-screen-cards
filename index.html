@@ -881,6 +881,19 @@
       outline: 2px solid #e94560;
     }
 
+    .suggestion-item.suggestion-header {
+      cursor: default;
+      color: #aaa;
+      font-size: 0.85rem;
+      font-style: italic;
+      justify-content: center;
+      background: #1a1a2e;
+    }
+
+    .suggestion-item.suggestion-header:hover {
+      background: #1a1a2e;
+    }
+
     /* Drop zone for missing images */
     .image-dropzone {
       display: flex;
@@ -1015,6 +1028,7 @@
       <h3>How to use</h3>
       <ol>
         <li>Paste an AoN monster URL (e.g., https://2e.aonprd.com/Monsters.aspx?ID=2945)</li>
+        <li>Or paste a family URL (e.g., MonsterFamilies.aspx?ID=399) and pick a member from the list</li>
         <li>Or type a monster name to search</li>
         <li>Add monsters from AoN, or click Custom Monster to build your own</li>
         <li>Add multiple monsters, then click Generate</li>
@@ -1186,7 +1200,82 @@
     let searchTimeout = null;
     let selectedIndex = -1;
     let currentResults = [];
+    let suggestionMode = 'search';
+    let familyPickerName = null;
     let activePortraitForSearch = null;
+
+    function parseAonUrl(value) {
+      const trimmed = value.trim();
+      if (!/aonprd\.com/i.test(trimmed)) return null;
+
+      try {
+        const href = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+        const url = new URL(href);
+        const idParam = url.searchParams.get('ID') || url.searchParams.get('id');
+        const numericId = idParam ? idParam.replace(/\D/g, '') : null;
+        const path = url.pathname.toLowerCase();
+
+        if (path.includes('monsterfamilies.aspx')) {
+          return { kind: 'family', id: numericId, url: url.href };
+        }
+        if (path.includes('monsters.aspx')) {
+          return { kind: 'monster', id: numericId, url: url.href };
+        }
+        return { kind: 'unsupported', id: numericId, url: url.href };
+      } catch {
+        return { kind: 'invalid', url: trimmed };
+      }
+    }
+
+    async function loadFamilyPicker(familyId) {
+      const status = document.getElementById('status');
+      const suggestions = document.getElementById('suggestions');
+
+      status.textContent = 'Loading family members...';
+      status.className = 'status loading';
+      suggestions.innerHTML = '<div class="suggestion-item searching">Loading family...</div>';
+      suggestions.classList.add('visible');
+
+      try {
+        const res = await fetch(`/api/family?id=${encodeURIComponent(familyId)}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to load family');
+        }
+
+        if (data.members.length > 0) {
+          currentResults = data.members.map((m) => ({
+            id: m.id,
+            name: m.name,
+            level: m.level,
+            image: null,
+            subfamily: false,
+          }));
+          status.textContent = `Choose a creature from ${data.name}`;
+        } else {
+          currentResults = data.subfamilies.map((sf) => ({
+            id: sf.id,
+            name: sf.name,
+            level: null,
+            image: null,
+            subfamily: true,
+          }));
+          status.textContent = `${data.name} has sub-families — pick one to see its creatures`;
+        }
+        suggestionMode = 'family';
+        familyPickerName = data.name;
+        selectedIndex = -1;
+        renderSuggestions();
+        status.className = 'status';
+      } catch (err) {
+        suggestionMode = 'search';
+        familyPickerName = null;
+        currentResults = [];
+        suggestions.classList.remove('visible');
+        status.textContent = err.message || 'Failed to load family';
+        status.className = 'status';
+      }
+    }
 
     // Sample monster data for card generation (placeholder until scraper is built)
     const sampleMonsters = {
@@ -1573,8 +1662,13 @@
       // If it's a URL, don't search
       if (value.includes('aonprd.com') || value.length < 2) {
         suggestions.classList.remove('visible');
+        suggestionMode = 'search';
+        familyPickerName = null;
         return;
       }
+
+      suggestionMode = 'search';
+      familyPickerName = null;
 
       // Show searching indicator
       suggestions.innerHTML = '<div class="suggestion-item searching">Searching...</div>';
@@ -1601,12 +1695,18 @@
     // Render suggestions with selection highlight
     function renderSuggestions() {
       const suggestions = document.getElementById('suggestions');
-      suggestions.innerHTML = currentResults.map((r, i) => `
+      const headerHint = currentResults.some((r) => r.subfamily)
+        ? 'pick a sub-family'
+        : 'pick a creature';
+      const header = suggestionMode === 'family' && familyPickerName
+        ? `<div class="suggestion-item suggestion-header">${escapeHtml(familyPickerName)} — ${headerHint}</div>`
+        : '';
+      suggestions.innerHTML = header + currentResults.map((r, i) => `
         <div class="suggestion-item${i === selectedIndex ? ' selected' : ''}"
              onclick="selectSuggestionByIndex(${i})"
              data-index="${i}">
-          <span class="name">${r.name}</span>
-          <span class="level">Lv ${r.level}</span>
+          <span class="name">${escapeHtml(r.name)}</span>
+          <span class="level">${r.subfamily ? 'sub-family' : `Lv ${r.level}`}</span>
         </div>
       `).join('');
     }
@@ -1614,7 +1714,12 @@
     // Select by index (called from click)
     function selectSuggestionByIndex(index) {
       const r = currentResults[index];
-      if (r) selectSuggestion(r.id, r.name, r.level, r.image);
+      if (!r) return;
+      if (r.subfamily) {
+        loadFamilyPicker(r.id);
+        return;
+      }
+      selectSuggestion(r.id, r.name, r.level, r.image);
     }
 
     // Handle keyboard navigation
@@ -1632,10 +1737,11 @@
         renderSuggestions();
       } else if (e.key === 'Enter' && selectedIndex >= 0) {
         e.preventDefault();
-        const r = currentResults[selectedIndex];
-        selectSuggestion(r.id, r.name, r.level, r.image);
+        selectSuggestionByIndex(selectedIndex);
       } else if (e.key === 'Escape') {
         suggestions.classList.remove('visible');
+        suggestionMode = 'search';
+        familyPickerName = null;
         selectedIndex = -1;
       }
     }
@@ -1656,6 +1762,8 @@
       input.value = '';
       suggestions.classList.remove('visible');
       selectedIndex = -1;
+      suggestionMode = 'search';
+      familyPickerName = null;
     }
 
     // Close suggestions when clicking outside
@@ -1667,45 +1775,72 @@
       }
     });
 
-    function addMonster() {
+    async function addMonster() {
       const input = document.getElementById('monsterInput');
       const value = input.value.trim();
       const suggestions = document.getElementById('suggestions');
+      const status = document.getElementById('status');
 
       if (!value) return;
 
-      // Hide suggestions
+      // Family picker open: Enter adds highlighted member or drills into sub-family
+      if (suggestionMode === 'family' && selectedIndex >= 0 && currentResults[selectedIndex]) {
+        selectSuggestionByIndex(selectedIndex);
+        return;
+      }
+
+      const parsed = parseAonUrl(value);
+
+      if (parsed) {
+        input.value = '';
+        suggestions.classList.remove('visible');
+
+        if (parsed.kind === 'family') {
+          if (!parsed.id) {
+            status.textContent = 'Family URL is missing an ID parameter.';
+            return;
+          }
+          await loadFamilyPicker(parsed.id);
+          return;
+        }
+
+        if (parsed.kind === 'monster') {
+          if (!parsed.id) {
+            status.textContent = 'Monster URL is missing an ID parameter.';
+            return;
+          }
+          addMonsterToQueue({
+            id: parsed.id,
+            name: `Monster #${parsed.id}`,
+            url: parsed.url,
+          });
+          status.textContent = '';
+          return;
+        }
+
+        status.textContent =
+          'Only Monsters.aspx and MonsterFamilies.aspx URLs are supported. Paste a direct monster stat block link.';
+        return;
+      }
+
+      // Hide name-search suggestions
       suggestions.classList.remove('visible');
 
-      // Extract ID from URL if it's a URL
-      let monsterId = null;
-      let monsterName = value;
-
-      if (value.includes('aonprd.com')) {
-        const match = value.match(/ID=(\d+)/);
-        if (match) {
-          monsterId = match[1];
-          monsterName = `Monster #${monsterId}`;
-        }
-        addMonsterToQueue({ id: monsterId, name: monsterName, url: value });
-        input.value = '';
-      } else {
-        // It's a name search - trigger search and pick first result
-        searchCreatures(value).then(results => {
-          if (results.length > 0) {
-            const r = results[0];
-            addMonsterToQueue({
-              id: r.id,
-              name: r.name,
-              level: r.level,
-              image: r.image,
-              url: `https://2e.aonprd.com/Monsters.aspx?ID=${r.id}`
-            });
-            input.value = '';
-          } else {
-            document.getElementById('status').textContent = `No creature found matching "${value}"`;
-          }
+      // Name search — pick first result
+      const results = await searchCreatures(value);
+      if (results.length > 0) {
+        const r = results[0];
+        addMonsterToQueue({
+          id: r.id,
+          name: r.name,
+          level: r.level,
+          image: r.image,
+          url: `https://2e.aonprd.com/Monsters.aspx?ID=${r.id}`,
         });
+        input.value = '';
+        status.textContent = '';
+      } else {
+        status.textContent = `No creature found matching "${value}"`;
       }
     }
 

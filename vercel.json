@@ -12,6 +12,10 @@
     {
       "src": "api/image-search.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/family.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
@@ -22,6 +26,10 @@
     {
       "src": "/api/image-search",
       "dest": "/api/image-search.js"
+    },
+    {
+      "src": "/api/family",
+      "dest": "/api/family.js"
     },
     {
       "src": "/(.*)",
