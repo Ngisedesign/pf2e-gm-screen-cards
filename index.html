@@ -2169,12 +2169,17 @@
         return;
       }
 
+      // Store current monsters for card generation, then clear the list
+      const monstersToGenerate = [...monsters];
+      monsters = [];
+      renderMonsterList();
+
       status.textContent = 'Fetching monster data';
       status.className = 'status loading';
 
       const monsterData = [];
 
-      for (const m of monsters) {
+      for (const m of monstersToGenerate) {
         if (m.custom && m.customData) {
           monsterData.push(m.customData);
           continue;
