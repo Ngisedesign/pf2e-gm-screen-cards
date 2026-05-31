@@ -645,6 +645,12 @@
       color: #7b2d3f;
     }
 
+    .action-icons {
+      color: #4a3b31;
+      font-weight: bold;
+      letter-spacing: -0.05em;
+    }
+
     .attacks-section {
       border-top: 2px solid #d4d0c6;
       padding-top: 0.08in;
@@ -1137,8 +1143,8 @@
           <h4>Abilities</h4>
           <div class="form-field">
             <label for="customAbilities">Ability text</label>
-            <textarea id="customAbilities" placeholder="Aura of Disruption: 30 ft. When a spell is counteracted...&#10;Disruptive Breath: 40-foot cone, 13d6 force, DC 34."></textarea>
-            <div class="form-hint">One per line: Name: description</div>
+            <textarea id="customAbilities" placeholder="[2] Breath Weapon: 40-foot cone, 13d6 fire, DC 34&#10;[1] Grab: Automatic on claw hit&#10;[F] Attack of Opportunity: Trigger - creature leaves reach&#10;Aura of Flame: 10 ft. 2d6 fire damage to creatures ending turn"></textarea>
+            <div class="form-hint">One per line: [actions] Name: description — actions: [1], [2], [3], or [F] for free</div>
           </div>
         </div>
 
@@ -1503,6 +1509,16 @@
       return (spells.title || 'Spells') + meta;
     }
 
+    // Format action cost as PF2e-style icons
+    function formatActionCost(actions) {
+      if (actions === null || actions === undefined) return '';
+      if (actions === 'free') return '<span class="action-icons">◇</span> ';
+      if (actions === 1) return '<span class="action-icons">◆</span> ';
+      if (actions === 2) return '<span class="action-icons">◆◆</span> ';
+      if (actions === 3) return '<span class="action-icons">◆◆◆</span> ';
+      return '';
+    }
+
     // Parse abilities with descriptions from markdown
     function parseAbilities(markdown, abilityNames) {
       const abilities = [];
@@ -1513,9 +1529,32 @@
         const pattern = new RegExp(`\\*\\*(?:\\[)?${escapedName}(?:\\][^)]*\\))?\\*\\*([\\s\\S]*?)(?=<br|\\n\\n|---|\n\\*\\*(?:\\[)?[A-Z]|$)`, 'i');
         const match = markdown.match(pattern);
         if (match && match[1]) {
+          // Extract action cost from the description
+          let actions = null;
+          const rawDesc = match[1];
+
+          // Look for action tags like <actions string="Single Action"/> or [one-action], [two-action], etc.
+          const actionTagMatch = rawDesc.match(/<actions[^>]*string="([^"]+)"[^>]*\/?>/i);
+          const bracketActionMatch = rawDesc.match(/\[(one|two|three|free|single)-action\]/i);
+
+          if (actionTagMatch) {
+            const actionStr = actionTagMatch[1].toLowerCase();
+            if (actionStr.includes('single') || actionStr.includes('one') || actionStr === '1') actions = 1;
+            else if (actionStr.includes('two') || actionStr === '2') actions = 2;
+            else if (actionStr.includes('three') || actionStr === '3') actions = 3;
+            else if (actionStr.includes('free')) actions = 'free';
+          } else if (bracketActionMatch) {
+            const actionStr = bracketActionMatch[1].toLowerCase();
+            if (actionStr === 'one' || actionStr === 'single') actions = 1;
+            else if (actionStr === 'two') actions = 2;
+            else if (actionStr === 'three') actions = 3;
+            else if (actionStr === 'free') actions = 'free';
+          }
+
           // Clean up the description
-          let desc = match[1]
+          let desc = rawDesc
             .replace(/<actions[^>]*\/>/g, '') // Remove action icons
+            .replace(/\[(one|two|three|free|single)-action\]/gi, '') // Remove bracket action tags
             .replace(/\*\*Trigger\*\*/g, 'Trigger:')
             .replace(/\*\*Effect\*\*/g, 'Effect:')
             .replace(/\*\*[^*]+\*\*/g, '') // Remove other bold markers
@@ -1523,9 +1562,9 @@
             .replace(/<[^>]+>/g, '') // Remove remaining HTML
             .replace(/\s+/g, ' ') // Collapse whitespace
             .trim();
-          abilities.push({ name, desc });
+          abilities.push({ name, desc, actions });
         } else {
-          abilities.push({ name, desc: '' });
+          abilities.push({ name, desc: '', actions: null });
         }
       }
       return abilities;
@@ -1971,11 +2010,31 @@
         .map((line) => line.trim())
         .filter(Boolean)
         .map((line) => {
-          const colon = line.indexOf(':');
-          if (colon === -1) return { name: line, desc: '' };
+          let actions = null;
+          let workingLine = line;
+
+          // Check for action notation at the start: [1], [2], [3], [F], ◆, ◆◆, ◆◆◆, ◇
+          const actionMatch = workingLine.match(/^(?:\[([123F])\]|(\u25C6{1,3})|(\u25C7))\s*/i);
+          if (actionMatch) {
+            if (actionMatch[1]) {
+              // [1], [2], [3], or [F] format
+              actions = actionMatch[1].toUpperCase() === 'F' ? 'free' : parseInt(actionMatch[1]);
+            } else if (actionMatch[2]) {
+              // ◆, ◆◆, or ◆◆◆ format
+              actions = actionMatch[2].length;
+            } else if (actionMatch[3]) {
+              // ◇ (free action)
+              actions = 'free';
+            }
+            workingLine = workingLine.slice(actionMatch[0].length);
+          }
+
+          const colon = workingLine.indexOf(':');
+          if (colon === -1) return { name: workingLine, desc: '', actions };
           return {
-            name: line.slice(0, colon).trim(),
-            desc: line.slice(colon + 1).trim(),
+            name: workingLine.slice(0, colon).trim(),
+            desc: workingLine.slice(colon + 1).trim(),
+            actions,
           };
         });
     }
@@ -2255,7 +2314,7 @@
           <div class="abilities-section">
             ${monster.abilities.map(a => `
               <div class="ability">
-                <span class="ability-name">${a.name}:</span> ${a.desc}
+                <span class="ability-name">${formatActionCost(a.actions)}${a.name}:</span> ${a.desc}
               </div>
             `).join('')}
           </div>
