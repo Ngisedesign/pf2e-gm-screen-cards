@@ -1064,6 +1064,19 @@
       .image-dropzone .drop-hint {
         display: none;
       }
+
+      /* Ensure custom images print properly */
+      .custom-image-container {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .custom-image-container img,
+      .card-portrait img {
+        max-width: 100% !important;
+        max-height: 6in !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
     }
   </style>
 </head>
