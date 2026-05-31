@@ -2322,7 +2322,7 @@
       // Store current monsters for card generation, then clear the list
       const monstersToGenerate = [...monsters];
       console.log('[generateCards] monstersToGenerate:', monstersToGenerate.length);
-      monsters = [];
+      monsters.length = 0;  // Clear array without reassigning (it's const)
       renderMonsterList();
 
       status.textContent = 'Fetching monster data';
