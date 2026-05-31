@@ -2312,6 +2312,8 @@
       const preview = document.getElementById('printPreview');
       const pages = document.getElementById('pages');
 
+      console.log('[generateCards] monsters array:', JSON.stringify(monsters, null, 2));
+
       if (monsters.length === 0) {
         status.textContent = 'Add at least one monster first!';
         return;
@@ -2319,6 +2321,7 @@
 
       // Store current monsters for card generation, then clear the list
       const monstersToGenerate = [...monsters];
+      console.log('[generateCards] monstersToGenerate:', monstersToGenerate.length);
       monsters = [];
       renderMonsterList();
 
@@ -2328,9 +2331,12 @@
       const monsterData = [];
 
       for (const m of monstersToGenerate) {
+        console.log('[generateCards] Processing:', m.name, 'custom:', m.custom, 'hasCustomData:', !!m.customData);
         if (m.custom) {
           // Custom monster - use customData if available, otherwise the entry has data directly
-          monsterData.push(m.customData || m);
+          const data = m.customData || m;
+          console.log('[generateCards] Adding custom monster:', data.name);
+          monsterData.push(data);
           continue;
         }
 
