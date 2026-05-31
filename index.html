@@ -2328,8 +2328,9 @@
       const monsterData = [];
 
       for (const m of monstersToGenerate) {
-        if (m.custom && m.customData) {
-          monsterData.push(m.customData);
+        if (m.custom) {
+          // Custom monster - use customData if available, otherwise the entry has data directly
+          monsterData.push(m.customData || m);
           continue;
         }
 
