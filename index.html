@@ -816,6 +816,66 @@
       color: #fff;
     }
 
+    /* Saved custom monsters collapsible */
+    .saved-customs {
+      max-width: 900px;
+      margin: 1rem auto 0;
+      padding: 0 1rem;
+    }
+
+    .saved-customs details {
+      background: #16213e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .saved-customs summary {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      color: #e94560;
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      user-select: none;
+    }
+
+    .saved-customs summary:hover {
+      background: #1f2a4a;
+    }
+
+    .saved-customs summary::marker {
+      color: #e94560;
+    }
+
+    .saved-customs-count {
+      background: #333;
+      color: #aaa;
+      padding: 0.15rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.75rem;
+      font-weight: normal;
+    }
+
+    .saved-customs-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-top: 1px solid #333;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .saved-customs-empty {
+      color: #666;
+      font-size: 0.85rem;
+      font-style: italic;
+      padding: 0.5rem 0;
+    }
+
     /* Search suggestions dropdown */
     .input-wrapper {
       position: relative;
@@ -1046,6 +1106,16 @@
       <h3>Recent monsters</h3>
       <div class="recent-monsters-list" id="recentMonsters"></div>
     </div>
+
+    <div class="saved-customs">
+      <details id="savedCustomsDetails">
+        <summary>
+          Saved Custom Monsters
+          <span class="saved-customs-count" id="savedCustomsCount">0</span>
+        </summary>
+        <div class="saved-customs-list" id="savedCustomsList"></div>
+      </details>
+    </div>
   </section>
 
   <div id="status" class="status"></div>
@@ -1203,6 +1273,10 @@
     const RECENT_STORAGE_KEY = 'pf2e-gm-recent-monsters';
     const MAX_RECENT_MONSTERS = 5;
     let recentMonsters = [];
+
+    const SAVED_CUSTOMS_KEY = 'pf2e-gm-saved-customs';
+    const MAX_SAVED_CUSTOMS = 30;
+    let savedCustoms = [];
     let searchTimeout = null;
     let selectedIndex = -1;
     let currentResults = [];
@@ -1988,6 +2062,77 @@
       renderRecentMonsters();
     }
 
+    // Saved custom monsters (persistent, up to 30)
+    function loadSavedCustoms() {
+      try {
+        const raw = localStorage.getItem(SAVED_CUSTOMS_KEY);
+        savedCustoms = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(savedCustoms)) savedCustoms = [];
+        savedCustoms = savedCustoms.slice(0, MAX_SAVED_CUSTOMS);
+      } catch {
+        savedCustoms = [];
+      }
+    }
+
+    function saveSavedCustoms() {
+      try {
+        localStorage.setItem(SAVED_CUSTOMS_KEY, JSON.stringify(savedCustoms));
+      } catch (err) {
+        console.warn('Could not save custom monsters:', err);
+      }
+    }
+
+    function rememberCustomMonster(customData) {
+      const snapshot = {
+        id: customData.id,
+        name: customData.name,
+        level: customData.level,
+        custom: true,
+        customData: cloneMonsterEntry(customData),
+      };
+
+      // Remove existing entry with same id if present
+      savedCustoms = savedCustoms.filter((m) => m.customData?.id !== customData.id);
+      savedCustoms.unshift(snapshot);
+      savedCustoms = savedCustoms.slice(0, MAX_SAVED_CUSTOMS);
+      saveSavedCustoms();
+      renderSavedCustoms();
+    }
+
+    function renderSavedCustoms() {
+      const list = document.getElementById('savedCustomsList');
+      const count = document.getElementById('savedCustomsCount');
+
+      count.textContent = savedCustoms.length;
+
+      if (!savedCustoms.length) {
+        list.innerHTML = '<span class="saved-customs-empty">Custom monsters you create will be saved here</span>';
+        return;
+      }
+
+      list.innerHTML = savedCustoms.map((m, i) => `
+        <span class="recent-tag" onclick="addSavedCustomToQueue(${i})" title="Add to card list">
+          ${escapeHtml(m.name)}${m.level != null ? ` <span style="color:#888">Lv ${m.level}</span>` : ''}
+          <span class="remove" onclick="removeSavedCustom(event, ${i})" title="Remove from saved">×</span>
+        </span>
+      `).join('');
+    }
+
+    function addSavedCustomToQueue(index) {
+      const entry = savedCustoms[index];
+      if (!entry) return;
+      monsters.push(cloneMonsterEntry(entry));
+      rememberRecent(entry);
+      renderMonsterList();
+    }
+
+    function removeSavedCustom(event, index) {
+      event.stopPropagation();
+      savedCustoms.splice(index, 1);
+      saveSavedCustoms();
+      renderSavedCustoms();
+    }
+
     function openCustomMonsterModal() {
       document.getElementById('customMonsterModal').classList.add('visible');
       document.getElementById('customName').focus();
@@ -2152,6 +2297,9 @@
         custom: true,
         customData,
       });
+
+      // Save to persistent custom monsters list
+      rememberCustomMonster(customData);
 
       document.getElementById('customMonsterForm').reset();
       document.getElementById('customLevel').value = '1';
@@ -2574,8 +2722,10 @@
 
     // Start with empty list
     loadRecentMonsters();
+    loadSavedCustoms();
     renderMonsterList();
     renderRecentMonsters();
+    renderSavedCustoms();
   </script>
 </body>
 </html>
