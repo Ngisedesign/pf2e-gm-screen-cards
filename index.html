@@ -930,6 +930,16 @@
       border-radius: 4px;
     }
 
+    .source-tag {
+      font-size: 0.7rem;
+      color: #888;
+      background: #1a1a2e;
+      padding: 0.15rem 0.4rem;
+      border-radius: 3px;
+      margin-left: 0.4rem;
+      border: 1px solid #333;
+    }
+
     .suggestion-item.searching {
       color: #888;
       font-style: italic;
@@ -2201,10 +2211,18 @@
       suggestions.innerHTML = header + currentResults.map((r, i) => {
         // Handle both PF2e (level) and 5e (cr) results
         let levelDisplay;
+        let sourceDisplay = '';
         if (r.subfamily) {
           levelDisplay = 'sub-family';
         } else if (currentSystem === 'dnd5e') {
           levelDisplay = `CR ${r.cr || '?'}`;
+          // Show source to distinguish SRD versions
+          if (r.source) {
+            const shortSource = r.source.includes('2024') ? '2024' :
+                               r.source.includes('Core') ? '2014' :
+                               r.source.replace(/5e |5th Edition |Advanced /gi, '').substring(0, 12);
+            sourceDisplay = `<span class="source-tag">${escapeHtml(shortSource)}</span>`;
+          }
         } else {
           levelDisplay = `Lv ${r.level}`;
         }
@@ -2212,7 +2230,7 @@
           <div class="suggestion-item${i === selectedIndex ? ' selected' : ''}"
                onclick="selectSuggestionByIndex(${i})"
                data-index="${i}">
-            <span class="name">${escapeHtml(r.name)}</span>
+            <span class="name">${escapeHtml(r.name)}${sourceDisplay}</span>
             <span class="level">${levelDisplay}</span>
           </div>
         `;
