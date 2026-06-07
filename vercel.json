@@ -24,7 +24,7 @@
   ],
   "routes": [
     {
-      "src": "/api/search-5e",
+      "src": "/api/search-5e(.*)",
       "dest": "/api/search-5e.js"
     },
     {
