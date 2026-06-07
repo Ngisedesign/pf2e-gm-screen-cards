@@ -10,6 +10,10 @@
       "use": "@vercel/node"
     },
     {
+      "src": "api/search-5e.js",
+      "use": "@vercel/node"
+    },
+    {
       "src": "api/image-search.js",
       "use": "@vercel/node"
     },
@@ -19,6 +23,10 @@
     }
   ],
   "routes": [
+    {
+      "src": "/api/search-5e",
+      "dest": "/api/search-5e.js"
+    },
     {
       "src": "/api/search",
       "dest": "/api/search.js"
