@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PF2e GM Screen Cards</title>
+  <title>GM Screen Cards</title>
   <style>
     * {
       margin: 0;
@@ -960,6 +960,101 @@
       background: #1a1a2e;
     }
 
+    /* System Toggle Styles */
+    .system-toggle {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin-top: 1rem;
+    }
+
+    .system-toggle button {
+      padding: 0.5rem 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 2px solid #e94560;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .system-toggle button:first-child {
+      border-radius: 20px 0 0 20px;
+      border-right: 1px solid #e94560;
+    }
+
+    .system-toggle button:last-child {
+      border-radius: 0 20px 20px 0;
+      border-left: 1px solid #e94560;
+    }
+
+    .system-toggle button.active {
+      background: #e94560;
+      color: white;
+    }
+
+    .system-toggle button:hover:not(.active) {
+      background: rgba(233, 69, 96, 0.2);
+      color: #eee;
+    }
+
+    /* 5e-specific card styles */
+    .cr-badge {
+      background: #7b2d3f !important;
+    }
+
+    .saves-row-5e {
+      flex-wrap: wrap;
+      gap: 0.15in;
+    }
+
+    .saves-row-5e .stat-block {
+      flex: 0 0 auto;
+      min-width: 0.5in;
+    }
+
+    .action-type-badge {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 14px;
+      font-size: 9px;
+      font-weight: bold;
+      color: white;
+      margin-right: 3px;
+      vertical-align: middle;
+    }
+
+    .action-badge {
+      background: #2d5a2d;
+    }
+
+    .bonus-badge {
+      background: #5a5a2d;
+    }
+
+    .reaction-badge {
+      background: #5a2d5a;
+    }
+
+    .legendary-badge {
+      background: #8b7500;
+    }
+
+    .legendary-desc {
+      font-style: italic;
+      font-size: 0.9em;
+      color: #555;
+      margin-bottom: 0.1in;
+    }
+
+    .card-stats-5e .stat-label {
+      font-weight: 600;
+    }
+
     /* Drop zone for missing images */
     .image-dropzone {
       display: flex;
@@ -1082,8 +1177,12 @@
 </head>
 <body>
   <header class="app-header">
-    <h1>PF2e GM Screen Cards</h1>
-    <p>Generate printable monster cards for your GM screen from Archives of Nethys</p>
+    <h1 id="appTitle">PF2e GM Screen Cards</h1>
+    <p id="appSubtitle">Generate printable monster cards for your GM screen from Archives of Nethys</p>
+    <div class="system-toggle">
+      <button id="togglePf2e" class="active" onclick="setSystem('pf2e')">Pathfinder 2e</button>
+      <button id="toggleDnd5e" onclick="setSystem('dnd5e')">D&D 5e</button>
+    </div>
   </header>
 
   <section class="input-section">
@@ -1283,12 +1382,21 @@
   <script>
     const monsters = [];
     const monsterCache = new Map();
-    const RECENT_STORAGE_KEY = 'pf2e-gm-recent-monsters';
     const MAX_RECENT_MONSTERS = 5;
-    let recentMonsters = [];
-
-    const SAVED_CUSTOMS_KEY = 'pf2e-gm-saved-customs';
     const MAX_SAVED_CUSTOMS = 30;
+
+    // System state - 'pf2e' or 'dnd5e'
+    let currentSystem = localStorage.getItem('gm-cards-system') || 'pf2e';
+
+    // Dynamic storage keys based on system
+    function getRecentStorageKey() {
+      return currentSystem === 'dnd5e' ? 'dnd5e-gm-recent-monsters' : 'pf2e-gm-recent-monsters';
+    }
+    function getSavedCustomsKey() {
+      return currentSystem === 'dnd5e' ? 'dnd5e-gm-saved-customs' : 'pf2e-gm-saved-customs';
+    }
+
+    let recentMonsters = [];
     let savedCustoms = [];
     let searchTimeout = null;
     let selectedIndex = -1;
@@ -1296,6 +1404,73 @@
     let suggestionMode = 'search';
     let familyPickerName = null;
     let activePortraitForSearch = null;
+
+    // System switching
+    function setSystem(system) {
+      if (system === currentSystem) return;
+
+      currentSystem = system;
+      localStorage.setItem('gm-cards-system', system);
+
+      // Update UI
+      document.getElementById('togglePf2e').classList.toggle('active', system === 'pf2e');
+      document.getElementById('toggleDnd5e').classList.toggle('active', system === 'dnd5e');
+
+      if (system === 'dnd5e') {
+        document.getElementById('appTitle').textContent = 'D&D 5e GM Screen Cards';
+        document.getElementById('appSubtitle').textContent = 'Generate printable monster cards for your GM screen from Open5e';
+        document.getElementById('monsterInput').placeholder = 'Enter monster name to search Open5e...';
+      } else {
+        document.getElementById('appTitle').textContent = 'PF2e GM Screen Cards';
+        document.getElementById('appSubtitle').textContent = 'Generate printable monster cards for your GM screen from Archives of Nethys';
+        document.getElementById('monsterInput').placeholder = 'Enter AoN URL or monster name...';
+      }
+
+      // Clear current monsters and reload system-specific data
+      monsters.length = 0;
+      renderMonsterList();
+      monsterCache.clear();
+
+      // Reload recent and saved monsters for this system
+      loadRecentMonsters();
+      renderRecentMonsters();
+      loadSavedCustoms();
+      renderSavedCustoms();
+
+      // Clear any open preview
+      document.getElementById('printPreview').style.display = 'none';
+      document.getElementById('pages').innerHTML = '';
+
+      // Update help text
+      updateHelpText();
+    }
+
+    function updateHelpText() {
+      const helpText = document.querySelector('.help-text');
+      if (currentSystem === 'dnd5e') {
+        helpText.innerHTML = `
+          <h3>How to use</h3>
+          <ol>
+            <li>Type a monster name to search Open5e's database</li>
+            <li>Or click Custom Monster to build your own</li>
+            <li>Add multiple monsters, then click Generate</li>
+            <li>Print on legal paper (8.5×14), cut in half, fold over GM screen</li>
+          </ol>
+        `;
+      } else {
+        helpText.innerHTML = `
+          <h3>How to use</h3>
+          <ol>
+            <li>Paste an AoN monster URL (e.g., https://2e.aonprd.com/Monsters.aspx?ID=2945)</li>
+            <li>Or paste a family URL (e.g., MonsterFamilies.aspx?ID=399) and pick a member from the list</li>
+            <li>Or type a monster name to search</li>
+            <li>Add monsters from AoN, or click Custom Monster to build your own</li>
+            <li>Add multiple monsters, then click Generate</li>
+            <li>Print on legal paper (8.5×14), cut in half, fold over GM screen</li>
+          </ol>
+        `;
+      }
+    }
 
     function parseAonUrl(value) {
       const trimmed = value.trim();
@@ -1413,7 +1588,7 @@
     const ES_URL = '/api/search';
 
     // Search AoN Elasticsearch for creatures (lightweight for autocomplete)
-    async function searchCreatures(query) {
+    async function searchCreaturesPf2e(query) {
       const searchQuery = {
         query: {
           bool: {
@@ -1442,6 +1617,34 @@
         level: hit._source.level,
         image: hit._source.image?.[0] ? `https://2e.aonprd.com${hit._source.image[0]}` : null
       }));
+    }
+
+    // Search Open5e API for D&D 5e creatures
+    async function searchCreatures5e(query) {
+      const response = await fetch(`/api/search-5e?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Search failed');
+      }
+
+      return (data.results || []).map(monster => ({
+        slug: monster.slug,
+        name: monster.name,
+        cr: monster.cr,
+        type: monster.type,
+        size: monster.size,
+        image: monster.image,
+        source: monster.source
+      }));
+    }
+
+    // Unified search function that picks the right system
+    async function searchCreatures(query) {
+      if (currentSystem === 'dnd5e') {
+        return searchCreatures5e(query);
+      }
+      return searchCreaturesPf2e(query);
     }
 
     // Strip AoN markdown links and HTML to plain text
@@ -1775,6 +1978,174 @@
       return monster;
     }
 
+    // Fetch full 5e monster data from Open5e
+    async function fetchMonsterData5e(slug) {
+      // Check cache first
+      const cacheKey = `5e-${slug}`;
+      if (monsterCache.has(cacheKey)) {
+        return monsterCache.get(cacheKey);
+      }
+
+      const response = await fetch(`/api/search-5e?slug=${encodeURIComponent(slug)}`);
+      if (!response.ok) return null;
+
+      const src = await response.json();
+
+      // Format speed object to string
+      let speedStr = '30 ft.';
+      if (src.speed) {
+        const speeds = [];
+        if (src.speed.walk) speeds.push(`${src.speed.walk} ft.`);
+        if (src.speed.fly) speeds.push(`fly ${src.speed.fly} ft.`);
+        if (src.speed.swim) speeds.push(`swim ${src.speed.swim} ft.`);
+        if (src.speed.burrow) speeds.push(`burrow ${src.speed.burrow} ft.`);
+        if (src.speed.climb) speeds.push(`climb ${src.speed.climb} ft.`);
+        speedStr = speeds.join(', ') || '30 ft.';
+      }
+
+      // Format skills
+      const skillParts = [];
+      if (src.skills) {
+        for (const [skill, bonus] of Object.entries(src.skills)) {
+          const skillName = skill.charAt(0).toUpperCase() + skill.slice(1);
+          skillParts.push(`${skillName} +${bonus}`);
+        }
+      }
+
+      // Format defenses
+      const defenses = [];
+      if (src.damage_immunities) {
+        defenses.push({ label: 'Immunities', text: src.damage_immunities });
+      }
+      if (src.damage_resistances) {
+        defenses.push({ label: 'Resistances', text: src.damage_resistances });
+      }
+      if (src.damage_vulnerabilities) {
+        defenses.push({ label: 'Vulnerabilities', text: src.damage_vulnerabilities });
+      }
+      if (src.condition_immunities) {
+        defenses.push({ label: 'Condition Immunities', text: src.condition_immunities });
+      }
+
+      // Parse actions with their types
+      const abilities = [];
+
+      // Special abilities (passive)
+      if (src.special_abilities) {
+        for (const ability of src.special_abilities) {
+          abilities.push({
+            name: ability.name,
+            desc: ability.desc,
+            actionType: null // passive
+          });
+        }
+      }
+
+      // Actions
+      if (src.actions) {
+        for (const action of src.actions) {
+          abilities.push({
+            name: action.name,
+            desc: action.desc,
+            actionType: 'action'
+          });
+        }
+      }
+
+      // Bonus actions
+      if (src.bonus_actions) {
+        for (const action of src.bonus_actions) {
+          abilities.push({
+            name: action.name,
+            desc: action.desc,
+            actionType: 'bonus'
+          });
+        }
+      }
+
+      // Reactions
+      if (src.reactions) {
+        for (const action of src.reactions) {
+          abilities.push({
+            name: action.name,
+            desc: action.desc,
+            actionType: 'reaction'
+          });
+        }
+      }
+
+      // Legendary actions
+      if (src.legendary_actions) {
+        for (const action of src.legendary_actions) {
+          abilities.push({
+            name: action.name,
+            desc: action.desc,
+            actionType: 'legendary'
+          });
+        }
+      }
+
+      // Parse attacks from actions
+      const attacks = [];
+      if (src.actions) {
+        for (const action of src.actions) {
+          if (action.attack_bonus !== undefined && action.attack_bonus !== null) {
+            attacks.push({
+              name: action.name,
+              bonus: `+${action.attack_bonus}`,
+              damage: action.damage_dice || '',
+              reach: action.desc?.includes('Ranged') ? 'Ranged' : 'Melee'
+            });
+          }
+        }
+      }
+
+      const monster = {
+        id: slug,
+        slug: slug,
+        system: 'dnd5e',
+        name: src.name,
+        cr: src.cr || src.challenge_rating,
+        type: `${src.size || ''} ${src.type || 'Creature'}`.trim(),
+        traits: src.subtype ? [src.subtype] : [],
+        image: src.img_main || null,
+        hp: src.hit_points || '?',
+        ac: src.armor_class || '?',
+        // 5e saves
+        strSave: src.strength_save != null ? `+${src.strength_save}` : formatAbilityMod(src.strength),
+        dexSave: src.dexterity_save != null ? `+${src.dexterity_save}` : formatAbilityMod(src.dexterity),
+        conSave: src.constitution_save != null ? `+${src.constitution_save}` : formatAbilityMod(src.constitution),
+        intSave: src.intelligence_save != null ? `+${src.intelligence_save}` : formatAbilityMod(src.intelligence),
+        wisSave: src.wisdom_save != null ? `+${src.wisdom_save}` : formatAbilityMod(src.wisdom),
+        chaSave: src.charisma_save != null ? `+${src.charisma_save}` : formatAbilityMod(src.charisma),
+        // Ability scores
+        str: src.strength,
+        dex: src.dexterity,
+        con: src.constitution,
+        int: src.intelligence,
+        wis: src.wisdom,
+        cha: src.charisma,
+        speed: speedStr,
+        skills: skillParts.join(', '),
+        senses: src.senses || '',
+        defenses: defenses,
+        spells: null, // TODO: parse spell_list if needed
+        abilities: abilities,
+        attacks: attacks,
+        legendaryDesc: src.legendary_desc || null
+      };
+
+      monsterCache.set(cacheKey, monster);
+      return monster;
+    }
+
+    // Calculate ability modifier from score
+    function formatAbilityMod(score) {
+      if (score == null) return '?';
+      const mod = Math.floor((score - 10) / 2);
+      return mod >= 0 ? `+${mod}` : `${mod}`;
+    }
+
     // Handle input changes for live search
     function handleInput(e) {
       const value = e.target.value.trim();
@@ -1827,14 +2198,25 @@
       const header = suggestionMode === 'family' && familyPickerName
         ? `<div class="suggestion-item suggestion-header">${escapeHtml(familyPickerName)} — ${headerHint}</div>`
         : '';
-      suggestions.innerHTML = header + currentResults.map((r, i) => `
-        <div class="suggestion-item${i === selectedIndex ? ' selected' : ''}"
-             onclick="selectSuggestionByIndex(${i})"
-             data-index="${i}">
-          <span class="name">${escapeHtml(r.name)}</span>
-          <span class="level">${r.subfamily ? 'sub-family' : `Lv ${r.level}`}</span>
-        </div>
-      `).join('');
+      suggestions.innerHTML = header + currentResults.map((r, i) => {
+        // Handle both PF2e (level) and 5e (cr) results
+        let levelDisplay;
+        if (r.subfamily) {
+          levelDisplay = 'sub-family';
+        } else if (currentSystem === 'dnd5e') {
+          levelDisplay = `CR ${r.cr || '?'}`;
+        } else {
+          levelDisplay = `Lv ${r.level}`;
+        }
+        return `
+          <div class="suggestion-item${i === selectedIndex ? ' selected' : ''}"
+               onclick="selectSuggestionByIndex(${i})"
+               data-index="${i}">
+            <span class="name">${escapeHtml(r.name)}</span>
+            <span class="level">${levelDisplay}</span>
+          </div>
+        `;
+      }).join('');
     }
 
     // Select by index (called from click)
@@ -1845,7 +2227,12 @@
         loadFamilyPicker(r.id);
         return;
       }
-      selectSuggestion(r.id, r.name, r.level, r.image);
+      // Handle both PF2e (id) and 5e (slug) results
+      if (currentSystem === 'dnd5e') {
+        selectSuggestion5e(r.slug, r.name, r.cr, r.image);
+      } else {
+        selectSuggestion(r.id, r.name, r.level, r.image);
+      }
     }
 
     // Handle keyboard navigation
@@ -1872,7 +2259,7 @@
       }
     }
 
-    // Select a suggestion from dropdown
+    // Select a suggestion from dropdown (PF2e)
     function selectSuggestion(id, name, level, image) {
       const input = document.getElementById('monsterInput');
       const suggestions = document.getElementById('suggestions');
@@ -1883,6 +2270,26 @@
         level: level,
         image: image,
         url: `https://2e.aonprd.com/Monsters.aspx?ID=${id}`
+      });
+
+      input.value = '';
+      suggestions.classList.remove('visible');
+      selectedIndex = -1;
+      suggestionMode = 'search';
+      familyPickerName = null;
+    }
+
+    // Select a suggestion from dropdown (5e)
+    function selectSuggestion5e(slug, name, cr, image) {
+      const input = document.getElementById('monsterInput');
+      const suggestions = document.getElementById('suggestions');
+
+      addMonsterToQueue({
+        slug: slug,
+        name: name,
+        cr: cr,
+        image: image,
+        system: 'dnd5e'
       });
 
       input.value = '';
@@ -1915,6 +2322,28 @@
         return;
       }
 
+      // 5e mode doesn't support URL parsing - just search
+      if (currentSystem === 'dnd5e') {
+        suggestions.classList.remove('visible');
+        const results = await searchCreatures(value);
+        if (results.length > 0) {
+          const r = results[0];
+          addMonsterToQueue({
+            slug: r.slug,
+            name: r.name,
+            cr: r.cr,
+            image: r.image,
+            system: 'dnd5e'
+          });
+          input.value = '';
+          status.textContent = '';
+        } else {
+          status.textContent = `No creature found matching "${value}"`;
+        }
+        return;
+      }
+
+      // PF2e mode - check for AoN URLs
       const parsed = parseAonUrl(value);
 
       if (parsed) {
@@ -1991,13 +2420,14 @@
 
     function recentMonsterKey(entry) {
       if (entry.custom && entry.customData?.id) return `custom:${entry.customData.id}`;
+      if (entry.slug) return `5e:${entry.slug}`;
       if (entry.id) return `aon:${entry.id}`;
       return `name:${entry.name}`;
     }
 
     function loadRecentMonsters() {
       try {
-        const raw = localStorage.getItem(RECENT_STORAGE_KEY);
+        const raw = localStorage.getItem(getRecentStorageKey());
         recentMonsters = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(recentMonsters)) recentMonsters = [];
         recentMonsters = recentMonsters.slice(0, MAX_RECENT_MONSTERS);
@@ -2008,7 +2438,7 @@
 
     function saveRecentMonsters() {
       try {
-        localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(recentMonsters));
+        localStorage.setItem(getRecentStorageKey(), JSON.stringify(recentMonsters));
       } catch (err) {
         console.warn('Could not save recent monsters:', err);
       }
@@ -2078,7 +2508,7 @@
     // Saved custom monsters (persistent, up to 30)
     function loadSavedCustoms() {
       try {
-        const raw = localStorage.getItem(SAVED_CUSTOMS_KEY);
+        const raw = localStorage.getItem(getSavedCustomsKey());
         savedCustoms = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(savedCustoms)) savedCustoms = [];
         savedCustoms = savedCustoms.slice(0, MAX_SAVED_CUSTOMS);
@@ -2089,7 +2519,7 @@
 
     function saveSavedCustoms() {
       try {
-        localStorage.setItem(SAVED_CUSTOMS_KEY, JSON.stringify(savedCustoms));
+        localStorage.setItem(getSavedCustomsKey(), JSON.stringify(savedCustoms));
       } catch (err) {
         console.warn('Could not save custom monsters:', err);
       }
@@ -2344,7 +2774,8 @@
       const monsterData = [];
 
       for (const m of monstersToGenerate) {
-        console.log('[generateCards] Processing:', m.name, 'custom:', m.custom, 'hasCustomData:', !!m.customData);
+        console.log('[generateCards] Processing:', m.name, 'custom:', m.custom, 'hasCustomData:', !!m.customData, 'system:', m.system || currentSystem);
+
         if (m.custom) {
           // Custom monster - use customData if available, otherwise the entry has data directly
           const data = m.customData || m;
@@ -2353,6 +2784,28 @@
           continue;
         }
 
+        // 5e monster (has slug)
+        if (m.slug || m.system === 'dnd5e') {
+          const data = await fetchMonsterData5e(m.slug);
+          if (data) {
+            monsterData.push(data);
+          } else {
+            monsterData.push({
+              name: m.name,
+              cr: m.cr,
+              type: 'Creature',
+              traits: [],
+              image: m.image,
+              system: 'dnd5e',
+              hp: '?', ac: '?',
+              strSave: '?', dexSave: '?', conSave: '?', intSave: '?', wisSave: '?', chaSave: '?',
+              speed: '?', skills: '', defenses: [], spells: null, abilities: [], attacks: []
+            });
+          }
+          continue;
+        }
+
+        // PF2e monster (has id)
         if (m.id) {
           const data = await fetchMonsterData(m.id);
           if (data) {
@@ -2424,7 +2877,7 @@
     function createCard(monster) {
       const card = document.createElement('div');
       card.className = 'card';
-      const cardId = `card-${monster.id || Math.random().toString(36).substr(2, 9)}`;
+      const cardId = `card-${monster.id || monster.slug || Math.random().toString(36).substr(2, 9)}`;
 
       // Create portrait section - either image or dropzone with placeholder
       const portraitContent = monster.image
@@ -2435,7 +2888,21 @@
              <div class="drop-hint"><span class="icon">📷</span> Drop image or click Replace</div>
            </div>`;
 
-      card.innerHTML = `
+      // Check if this is a 5e monster
+      const is5e = monster.system === 'dnd5e' || monster.strSave !== undefined;
+
+      if (is5e) {
+        card.innerHTML = createCard5e(monster, cardId, portraitContent);
+      } else {
+        card.innerHTML = createCardPf2e(monster, cardId, portraitContent);
+      }
+
+      return card;
+    }
+
+    // Create PF2e card layout
+    function createCardPf2e(monster, cardId, portraitContent) {
+      return `
         <div class="card-portrait" id="${cardId}" data-monster-name="${monster.name}">
           <div class="portrait-content">
             ${portraitContent}
@@ -2455,7 +2922,7 @@
           </div>
 
           <div class="traits">
-            ${monster.traits.map(t => `<span class="trait">${t}</span>`).join('')}
+            ${(monster.traits || []).map(t => `<span class="trait">${t}</span>`).join('')}
           </div>
 
           <div class="stat-row">
@@ -2485,13 +2952,14 @@
           ` : ''}
 
           <div class="abilities-section">
-            ${monster.abilities.map(a => `
+            ${(monster.abilities || []).map(a => `
               <div class="ability">
                 <span class="ability-name">${formatActionCost(a.actions)}${a.name}:</span> ${a.desc}
               </div>
             `).join('')}
           </div>
 
+          ${(monster.attacks || []).length ? `
           <div class="attacks-section">
             <div class="attacks-section-title">Strikes</div>
             ${monster.attacks.map(a => `
@@ -2503,6 +2971,7 @@
               </div>
             `).join('')}
           </div>
+          ` : ''}
 
           ${monster.spells ? `
           <div class="spells-section">
@@ -2512,8 +2981,149 @@
           ` : ''}
         </div>
       `;
+    }
 
-      return card;
+    // Format 5e action type badge
+    function format5eActionType(actionType) {
+      if (!actionType) return '';
+      const badges = {
+        'action': '<span class="action-type-badge action-badge">A</span>',
+        'bonus': '<span class="action-type-badge bonus-badge">B</span>',
+        'reaction': '<span class="action-type-badge reaction-badge">R</span>',
+        'legendary': '<span class="action-type-badge legendary-badge">L</span>'
+      };
+      return badges[actionType] || '';
+    }
+
+    // Create D&D 5e card layout
+    function createCard5e(monster, cardId, portraitContent) {
+      // Group abilities by type for better organization
+      const passiveAbilities = (monster.abilities || []).filter(a => !a.actionType);
+      const actions = (monster.abilities || []).filter(a => a.actionType === 'action');
+      const bonusActions = (monster.abilities || []).filter(a => a.actionType === 'bonus');
+      const reactions = (monster.abilities || []).filter(a => a.actionType === 'reaction');
+      const legendaryActions = (monster.abilities || []).filter(a => a.actionType === 'legendary');
+
+      return `
+        <div class="card-portrait" id="${cardId}" data-monster-name="${monster.name}">
+          <div class="portrait-content">
+            ${portraitContent}
+          </div>
+          <div class="portrait-replace-overlay">
+            <button type="button" class="portrait-replace-btn">Replace</button>
+            <button type="button" class="portrait-find-btn">Find Image</button>
+          </div>
+        </div>
+        <div class="card-stats card-stats-5e">
+          <div class="stats-header">
+            <div class="name-block">
+              <div class="name">${monster.name}</div>
+              <div class="type-line">${monster.type}</div>
+            </div>
+            <div class="level-badge cr-badge">CR ${monster.cr}</div>
+          </div>
+
+          ${(monster.traits || []).length ? `
+          <div class="traits">
+            ${monster.traits.map(t => `<span class="trait">${t}</span>`).join('')}
+          </div>
+          ` : ''}
+
+          <div class="stat-row">
+            <div class="stat-block"><span class="stat-label">HP</span> ${monster.hp}</div>
+            <div class="stat-block"><span class="stat-label">AC</span> ${monster.ac}</div>
+          </div>
+
+          <div class="stat-row saves-row-5e">
+            <div class="stat-block"><span class="stat-label">STR</span> ${monster.strSave}</div>
+            <div class="stat-block"><span class="stat-label">DEX</span> ${monster.dexSave}</div>
+            <div class="stat-block"><span class="stat-label">CON</span> ${monster.conSave}</div>
+            <div class="stat-block"><span class="stat-label">INT</span> ${monster.intSave}</div>
+            <div class="stat-block"><span class="stat-label">WIS</span> ${monster.wisSave}</div>
+            <div class="stat-block"><span class="stat-label">CHA</span> ${monster.chaSave}</div>
+          </div>
+
+          ${monster.defenses?.length ? `
+          <div class="defenses-section">
+            ${monster.defenses.map(d => `
+              <div class="defense-row"><span class="stat-label">${d.label}</span> ${d.text}</div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          <div class="stat-row">
+            <div class="stat-block"><span class="stat-label">Speed</span> ${monster.speed}</div>
+          </div>
+
+          ${monster.senses ? `
+          <div class="skills-row">
+            <span class="stat-label">Senses</span> ${monster.senses}
+          </div>
+          ` : ''}
+
+          ${monster.skills ? `
+          <div class="skills-row">
+            <span class="stat-label">Skills</span> ${monster.skills}
+          </div>
+          ` : ''}
+
+          ${passiveAbilities.length ? `
+          <div class="abilities-section">
+            <div class="attacks-section-title">Traits</div>
+            ${passiveAbilities.map(a => `
+              <div class="ability">
+                <span class="ability-name">${a.name}:</span> ${a.desc}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          ${actions.length ? `
+          <div class="abilities-section">
+            <div class="attacks-section-title">Actions</div>
+            ${actions.map(a => `
+              <div class="ability">
+                <span class="ability-name">${format5eActionType('action')}${a.name}:</span> ${a.desc}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          ${bonusActions.length ? `
+          <div class="abilities-section">
+            <div class="attacks-section-title">Bonus Actions</div>
+            ${bonusActions.map(a => `
+              <div class="ability">
+                <span class="ability-name">${format5eActionType('bonus')}${a.name}:</span> ${a.desc}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          ${reactions.length ? `
+          <div class="abilities-section">
+            <div class="attacks-section-title">Reactions</div>
+            ${reactions.map(a => `
+              <div class="ability">
+                <span class="ability-name">${format5eActionType('reaction')}${a.name}:</span> ${a.desc}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          ${legendaryActions.length ? `
+          <div class="abilities-section">
+            <div class="attacks-section-title">Legendary Actions</div>
+            ${monster.legendaryDesc ? `<div class="legendary-desc">${monster.legendaryDesc}</div>` : ''}
+            ${legendaryActions.map(a => `
+              <div class="ability">
+                <span class="ability-name">${format5eActionType('legendary')}${a.name}:</span> ${a.desc}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+        </div>
+      `;
     }
 
     function escapeHtml(text) {
@@ -2740,7 +3350,26 @@
       if (e.key === 'Enter' && selectedIndex < 0) addMonster();
     });
 
+    // Initialize system from localStorage
+    function initializeSystem() {
+      const savedSystem = localStorage.getItem('gm-cards-system') || 'pf2e';
+      currentSystem = savedSystem;
+
+      // Update UI to reflect saved system
+      document.getElementById('togglePf2e').classList.toggle('active', savedSystem === 'pf2e');
+      document.getElementById('toggleDnd5e').classList.toggle('active', savedSystem === 'dnd5e');
+
+      if (savedSystem === 'dnd5e') {
+        document.getElementById('appTitle').textContent = 'D&D 5e GM Screen Cards';
+        document.getElementById('appSubtitle').textContent = 'Generate printable monster cards for your GM screen from Open5e';
+        document.getElementById('monsterInput').placeholder = 'Enter monster name to search Open5e...';
+      }
+
+      updateHelpText();
+    }
+
     // Start with empty list
+    initializeSystem();
     loadRecentMonsters();
     loadSavedCustoms();
     renderMonsterList();
