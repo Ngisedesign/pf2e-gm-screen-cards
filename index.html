@@ -203,6 +203,24 @@
       border-right: 1px dashed #ccc;
     }
 
+    /* Mega card: single monster fills the entire page (both halves) */
+    .card-mega {
+      width: 8.5in;
+    }
+    .card-mega.card:first-child {
+      border-right: none;
+    }
+    .card-mega .card-portrait {
+      padding: 0.6in;
+    }
+    .card-mega .card-portrait img {
+      max-width: 100%;
+      max-height: 6in;
+    }
+    .card-mega .card-stats {
+      padding: 0.5in;
+    }
+
     /*
       Card Layout for GM Screen draping:
       - Top half: Portrait (rotated 180deg - faces players when draped over screen)
@@ -3048,24 +3066,34 @@
       // Generate pages (2 cards per page)
       pages.innerHTML = '';
 
-      for (let i = 0; i < monsterData.length; i += 2) {
+      if (monsterData.length === 1) {
+        // Single monster: one "mega" card that fills the whole page (both halves)
         const page = document.createElement('div');
         page.className = 'print-page';
-
-        // First card
-        page.appendChild(createCard(monsterData[i]));
-
-        // Second card (or empty)
-        if (monsterData[i + 1]) {
-          page.appendChild(createCard(monsterData[i + 1]));
-        } else {
-          const empty = document.createElement('div');
-          empty.className = 'card';
-          empty.style.background = '#f5f5f0';
-          page.appendChild(empty);
-        }
-
+        const megaCard = createCard(monsterData[0]);
+        megaCard.classList.add('card-mega');
+        page.appendChild(megaCard);
         pages.appendChild(page);
+      } else {
+        for (let i = 0; i < monsterData.length; i += 2) {
+          const page = document.createElement('div');
+          page.className = 'print-page';
+
+          // First card
+          page.appendChild(createCard(monsterData[i]));
+
+          // Second card (or empty)
+          if (monsterData[i + 1]) {
+            page.appendChild(createCard(monsterData[i + 1]));
+          } else {
+            const empty = document.createElement('div');
+            empty.className = 'card';
+            empty.style.background = '#f5f5f0';
+            page.appendChild(empty);
+          }
+
+          pages.appendChild(page);
+        }
       }
 
       preview.style.display = 'block';
@@ -3083,12 +3111,26 @@
       const stats = card.querySelector('.card-stats');
       if (!stats) return;
 
-      let size = 8;
+      const isMega = card.classList.contains('card-mega');
+      let size = isMega ? 18 : 8;
       stats.style.fontSize = size + 'pt';
 
+      // Shrink until everything fits
       while (stats.scrollHeight > stats.clientHeight + 1 && size > 4) {
         size -= 0.25;
         stats.style.fontSize = size + 'pt';
+      }
+
+      // For mega cards, grow to fill the extra space if there's room left
+      if (isMega) {
+        while (stats.scrollHeight <= stats.clientHeight && size < 30) {
+          size += 0.25;
+          stats.style.fontSize = size + 'pt';
+        }
+        if (stats.scrollHeight > stats.clientHeight + 1) {
+          size -= 0.25;
+          stats.style.fontSize = size + 'pt';
+        }
       }
     }
 
