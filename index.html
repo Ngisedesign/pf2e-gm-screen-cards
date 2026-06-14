@@ -868,6 +868,18 @@
       color: #fff;
     }
 
+    .recent-tag .edit-custom {
+      cursor: pointer;
+      color: #8aa0c8;
+      font-size: 0.9em;
+      padding: 0 0.1rem;
+      line-height: 1;
+    }
+
+    .recent-tag .edit-custom:hover {
+      color: #fff;
+    }
+
     /* Saved custom monsters collapsible */
     .saved-customs {
       max-width: 900px;
@@ -1305,7 +1317,7 @@
   <div id="customMonsterModal" class="custom-monster-modal">
     <div class="custom-monster-panel">
       <div class="custom-monster-header">
-        <h3>Custom Monster</h3>
+        <h3 id="customModalTitle">Custom Monster</h3>
         <button type="button" class="custom-monster-close" id="customMonsterClose" aria-label="Close">&times;</button>
       </div>
       <form id="customMonsterForm" class="custom-monster-form" onsubmit="submitCustomMonster(event)">
@@ -1455,7 +1467,7 @@
       </form>
       <div class="custom-monster-footer">
         <button type="button" class="btn-secondary" onclick="closeCustomMonsterModal()">Cancel</button>
-        <button type="submit" form="customMonsterForm" class="btn-primary">Create</button>
+        <button type="submit" form="customMonsterForm" class="btn-primary" id="customSubmitBtn">Create</button>
       </div>
     </div>
   </div>
@@ -1495,6 +1507,7 @@
     let suggestionMode = 'search';
     let familyPickerName = null;
     let activePortraitForSearch = null;
+    let editingCustomId = null;
 
     // System switching
     function setSystem(system) {
@@ -2660,6 +2673,7 @@
         return `
         <span class="recent-tag" onclick="addSavedCustomToQueue(${i})" title="Add to card list">
           ${escapeHtml(m.name)}${badge}
+          <span class="edit-custom" onclick="editCustomMonster(event, ${i})" title="Edit">✎</span>
           <span class="remove" onclick="removeSavedCustom(event, ${i})" title="Remove from saved">×</span>
         </span>`;
       }).join('');
@@ -2720,6 +2734,7 @@
     }
 
     function openCustomMonsterModal() {
+      resetCustomForm();
       syncCustomFormToSystem();
       document.getElementById('customMonsterModal').classList.add('visible');
       document.getElementById('customName').focus();
@@ -2727,6 +2742,167 @@
 
     function closeCustomMonsterModal() {
       document.getElementById('customMonsterModal').classList.remove('visible');
+      editingCustomId = null;
+      setCustomModalMode('create');
+    }
+
+    function setCustomModalMode(mode) {
+      const title = document.getElementById('customModalTitle');
+      const btn = document.getElementById('customSubmitBtn');
+      if (mode === 'edit') {
+        if (title) title.textContent = 'Edit Custom Monster';
+        if (btn) btn.textContent = 'Save Changes';
+      } else {
+        if (title) title.textContent = 'Custom Monster';
+        if (btn) btn.textContent = 'Create';
+      }
+    }
+
+    function resetCustomForm() {
+      editingCustomId = null;
+      const form = document.getElementById('customMonsterForm');
+      if (form) form.reset();
+      document.getElementById('customLevel').value = '1';
+      setCustomModalMode('create');
+    }
+
+    // Open the modal pre-filled with an existing saved custom monster for editing
+    function editCustomMonster(event, index) {
+      event.stopPropagation();
+      const entry = savedCustoms[index];
+      if (!entry || !entry.customData) return;
+      editingCustomId = entry.customData.id;
+      syncCustomFormToSystem();
+      populateCustomForm(entry.customData);
+      setCustomModalMode('edit');
+      document.getElementById('customMonsterModal').classList.add('visible');
+      document.getElementById('customName').focus();
+    }
+
+    // --- Serializers: turn parsed customData back into editable form text ---
+    function serializeAbilitiesPf2e(abilities) {
+      return (abilities || []).map((a) => {
+        let prefix = '';
+        if (a.actions === 'free') prefix = '[F] ';
+        else if (typeof a.actions === 'number') prefix = `[${a.actions}] `;
+        return `${prefix}${a.name}${a.desc ? ': ' + a.desc : ''}`;
+      }).join('\n');
+    }
+
+    function serializeAbilities5e(abilities, attacks) {
+      const attackNames = new Set((attacks || []).map((a) => a.name));
+      const map = { action: 'A', bonus: 'B', reaction: 'R', legendary: 'L' };
+      return (abilities || [])
+        // Attacks are appended into abilities as actions on build — don't duplicate them here
+        .filter((a) => !(a.actionType === 'action' && attackNames.has(a.name)))
+        .map((a) => {
+          const prefix = a.actionType && map[a.actionType] ? `[${map[a.actionType]}] ` : '';
+          return `${prefix}${a.name}${a.desc ? ': ' + a.desc : ''}`;
+        }).join('\n');
+    }
+
+    function serializeAttacks(attacks) {
+      return (attacks || []).map((a) => `${a.name}, ${a.bonus}, ${a.damage}, ${a.reach}`).join('\n');
+    }
+
+    function serializeSpells(spells) {
+      if (!spells) return { title: '', dc: '', attack: '', text: '' };
+      return {
+        title: spells.title || '',
+        dc: spells.dc || '',
+        attack: spells.attack || '',
+        text: (spells.ranks || []).map((r) => (r.rank ? `${r.rank}: ${r.spells}` : r.spells)).join('\n'),
+      };
+    }
+
+    function populateCustomForm(d) {
+      const set = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val == null ? '' : val;
+      };
+      const is5e = d.system === 'dnd5e';
+
+      set('customName', d.name);
+      set('customType', d.type);
+      set('customTraits', (d.traits || []).join(', '));
+      set('customHp', d.hp);
+      set('customAc', d.ac);
+      set('customSpeed', d.speed);
+      set('customSkills', d.skills);
+
+      const byLabel = (labels) => {
+        const found = (d.defenses || []).find((x) => labels.includes(x.label));
+        return found ? found.text : '';
+      };
+      set('customImmunities', byLabel(['Immunities']));
+      set('customResistances', byLabel(['Resistances']));
+      set('customWeaknesses', byLabel(['Weaknesses', 'Vulnerabilities']));
+
+      if (is5e) {
+        set('customCr', d.cr != null ? String(d.cr) : '');
+        set('customSenses', d.senses);
+        set('customStr', d.str); set('customDex', d.dex); set('customCon', d.con);
+        set('customInt', d.int); set('customWis', d.wis); set('customCha', d.cha);
+        set('customStrSave', d.strSave); set('customDexSave', d.dexSave); set('customConSave', d.conSave);
+        set('customIntSave', d.intSave); set('customWisSave', d.wisSave); set('customChaSave', d.chaSave);
+        set('customAbilities', serializeAbilities5e(d.abilities, d.attacks));
+        set('customAttacks', serializeAttacks(d.attacks));
+      } else {
+        set('customLevel', d.level != null ? d.level : 1);
+        set('customFort', d.fort); set('customRef', d.ref); set('customWill', d.will);
+        set('customAbilities', serializeAbilitiesPf2e(d.abilities));
+        set('customAttacks', serializeAttacks(d.attacks));
+        const sp = serializeSpells(d.spells);
+        set('customSpellTitle', sp.title);
+        set('customSpellDc', sp.dc);
+        set('customSpellAttack', sp.attack);
+        set('customSpells', sp.text);
+      }
+    }
+
+    // Update a saved custom monster in place (and any queued/recent copies)
+    function updateCustomMonster(id, customData) {
+      const snapshot = {
+        id: customData.id,
+        name: customData.name,
+        level: customData.level,
+        custom: true,
+        customData: cloneMonsterEntry(customData),
+      };
+
+      const si = savedCustoms.findIndex((m) => m.customData?.id === id);
+      if (si !== -1) savedCustoms[si] = snapshot;
+      else savedCustoms.unshift(snapshot);
+      savedCustoms = savedCustoms.slice(0, MAX_SAVED_CUSTOMS);
+      saveSavedCustoms();
+      renderSavedCustoms();
+
+      // Keep any copy already queued for card generation in sync
+      let queueChanged = false;
+      for (const m of monsters) {
+        if (m.custom && m.customData?.id === id) {
+          m.name = customData.name;
+          m.level = customData.level;
+          m.customData = cloneMonsterEntry(customData);
+          queueChanged = true;
+        }
+      }
+      if (queueChanged) renderMonsterList();
+
+      // And any recent-list copy
+      let recentChanged = false;
+      for (const m of recentMonsters) {
+        if (m.custom && m.customData?.id === id) {
+          m.name = customData.name;
+          m.level = customData.level;
+          m.customData = cloneMonsterEntry(customData);
+          recentChanged = true;
+        }
+      }
+      if (recentChanged) {
+        saveRecentMonsters();
+        renderRecentMonsters();
+      }
     }
 
     function formatSaveValue(value) {
@@ -2893,7 +3069,7 @@
       const cr = document.getElementById('customCr').value.trim() || '?';
 
       return {
-        id: `custom-${Date.now()}`,
+        id: editingCustomId || `custom-${Date.now()}`,
         name: document.getElementById('customName').value.trim(),
         system: 'dnd5e',
         cr,
@@ -2943,7 +3119,7 @@
       );
 
       return {
-        id: `custom-${Date.now()}`,
+        id: editingCustomId || `custom-${Date.now()}`,
         name: document.getElementById('customName').value.trim(),
         level: parseInt(document.getElementById('customLevel').value, 10) || 1,
         type: document.getElementById('customType').value.trim() || 'Creature',
@@ -2969,21 +3145,26 @@
       if (!name) return;
 
       const customData = buildCustomMonsterFromForm();
-      addMonsterToQueue({
-        id: customData.id,
-        name: customData.name,
-        level: customData.level,
-        custom: true,
-        customData,
-      });
 
-      // Save to persistent custom monsters list
-      rememberCustomMonster(customData);
+      if (editingCustomId) {
+        updateCustomMonster(editingCustomId, customData);
+        document.getElementById('status').textContent = `Updated custom monster: ${name}`;
+      } else {
+        addMonsterToQueue({
+          id: customData.id,
+          name: customData.name,
+          level: customData.level,
+          custom: true,
+          customData,
+        });
 
-      document.getElementById('customMonsterForm').reset();
-      document.getElementById('customLevel').value = '1';
+        // Save to persistent custom monsters list
+        rememberCustomMonster(customData);
+        document.getElementById('status').textContent = `Added custom monster: ${name}`;
+      }
+
+      resetCustomForm();
       closeCustomMonsterModal();
-      document.getElementById('status').textContent = `Added custom monster: ${name}`;
     }
 
     async function generateCards() {
