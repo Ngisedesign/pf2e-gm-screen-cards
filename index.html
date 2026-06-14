@@ -476,6 +476,94 @@
       color: #eee;
     }
 
+    /* Manual vs Smart chooser */
+    .custom-start-body {
+      padding: 1.25rem;
+      overflow-y: auto;
+    }
+
+    .custom-start-choices {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+    }
+
+    @media (max-width: 480px) {
+      .custom-start-choices { grid-template-columns: 1fr; }
+    }
+
+    .custom-start-choice {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      text-align: left;
+      padding: 1rem;
+      border: 2px solid #333;
+      border-radius: 8px;
+      background: #1a1a2e;
+      color: #eee;
+      cursor: pointer;
+      transition: border-color 0.15s, transform 0.05s;
+    }
+
+    .custom-start-choice:hover {
+      border-color: #e94560;
+    }
+
+    .custom-start-choice:active { transform: translateY(1px); }
+
+    .custom-start-choice .choice-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #e94560;
+    }
+
+    .custom-start-choice .choice-sub {
+      font-size: 0.8rem;
+      color: #aaa;
+      line-height: 1.35;
+    }
+
+    .smart-panel { margin-top: 1.1rem; }
+
+    .smart-label {
+      display: block;
+      font-size: 0.82rem;
+      color: #aaa;
+      margin-bottom: 0.4rem;
+    }
+
+    .smart-dump {
+      width: 100%;
+      padding: 0.6rem 0.7rem;
+      border: 2px solid #333;
+      border-radius: 6px;
+      background: #1a1a2e;
+      color: #eee;
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 8rem;
+    }
+
+    .smart-dump:focus { outline: none; border-color: #e94560; }
+
+    .smart-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.6rem;
+      margin-top: 0.75rem;
+    }
+
+    .smart-status {
+      margin-top: 0.7rem;
+      font-size: 0.82rem;
+      color: #8fb98f;
+      min-height: 1.1rem;
+    }
+
+    .smart-status.err { color: #e9a0a0; }
+
     .custom-monster-form {
       padding: 1rem 1.25rem;
       overflow-y: auto;
@@ -1292,7 +1380,7 @@
 
     <div class="actions">
       <button class="btn-primary" id="generateBtn" onclick="generateCards()">Generate Cards</button>
-      <button class="btn-secondary" onclick="openCustomMonsterModal()">Custom Monster</button>
+      <button class="btn-secondary" onclick="openCustomStart()">Custom Monster</button>
       <button class="btn-secondary" onclick="window.print()">Print</button>
     </div>
 
@@ -1333,6 +1421,36 @@
     </div>
     <div id="pages"></div>
   </section>
+
+  <div id="customStartModal" class="custom-monster-modal">
+    <div class="custom-monster-panel" style="width: min(560px, 100%);">
+      <div class="custom-monster-header">
+        <h3>New Custom Monster</h3>
+        <button type="button" class="custom-monster-close" onclick="closeCustomStart()" aria-label="Close">&times;</button>
+      </div>
+      <div class="custom-start-body">
+        <div class="custom-start-choices">
+          <button type="button" class="custom-start-choice" onclick="chooseManual()">
+            <span class="choice-title">✍️ Manual</span>
+            <span class="choice-sub">Fill out the form yourself, field by field.</span>
+          </button>
+          <button type="button" class="custom-start-choice" onclick="chooseSmart()">
+            <span class="choice-title">✨ Smart</span>
+            <span class="choice-sub">Paste a stat block or rough notes — AI fills the form for you to review.</span>
+          </button>
+        </div>
+        <div id="smartPanel" class="smart-panel" style="display:none;">
+          <label class="smart-label" for="smartDump">Paste anything — a full stat block, rough notes, or a description:</label>
+          <textarea id="smartDump" class="smart-dump" placeholder="e.g. Ancient Red Dragon — Gargantuan dragon, CR 24, AC 22, HP 546, fly 80 ft., breath weapon (90-ft. cone, 26d6 fire, DC 24)..."></textarea>
+          <div class="smart-actions">
+            <button type="button" class="btn-secondary" onclick="smartBackToChoices()">Back</button>
+            <button type="button" class="btn-primary" id="smartFillBtn" onclick="runSmartFill()">Fill form with AI</button>
+          </div>
+          <div id="smartStatus" class="smart-status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="customMonsterModal" class="custom-monster-modal">
     <div class="custom-monster-panel">
@@ -2753,6 +2871,102 @@
       }
     }
 
+    // --- Manual vs Smart chooser ---
+    function openCustomStart() {
+      // Reset the chooser to its default (choices visible, smart panel hidden, empty).
+      const choices = document.querySelector('#customStartModal .custom-start-choices');
+      if (choices) choices.style.display = '';
+      const panel = document.getElementById('smartPanel');
+      if (panel) panel.style.display = 'none';
+      const dump = document.getElementById('smartDump');
+      if (dump) dump.value = '';
+      const status = document.getElementById('smartStatus');
+      if (status) { status.textContent = ''; status.className = 'smart-status'; }
+      document.getElementById('customStartModal').classList.add('visible');
+    }
+
+    function closeCustomStart() {
+      document.getElementById('customStartModal').classList.remove('visible');
+    }
+
+    function chooseManual() {
+      closeCustomStart();
+      openCustomMonsterModal();
+    }
+
+    function chooseSmart() {
+      const choices = document.querySelector('#customStartModal .custom-start-choices');
+      if (choices) choices.style.display = 'none';
+      document.getElementById('smartPanel').style.display = '';
+      document.getElementById('smartDump').focus();
+    }
+
+    function smartBackToChoices() {
+      document.getElementById('smartPanel').style.display = 'none';
+      const choices = document.querySelector('#customStartModal .custom-start-choices');
+      if (choices) choices.style.display = '';
+      const status = document.getElementById('smartStatus');
+      if (status) { status.textContent = ''; status.className = 'smart-status'; }
+    }
+
+    // Fill the visible form inputs from AI-returned field values (custom + CapitalizedKey).
+    function applySmartFields(fields) {
+      if (!fields) return;
+      const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+      Object.keys(fields).forEach((k) => {
+        const val = fields[k];
+        if (val == null || val === '') return;
+        const el = document.getElementById('custom' + cap(k));
+        if (el) el.value = val;
+      });
+    }
+
+    async function runSmartFill() {
+      const dump = document.getElementById('smartDump');
+      const status = document.getElementById('smartStatus');
+      const btn = document.getElementById('smartFillBtn');
+      const text = (dump.value || '').trim();
+
+      if (text.length < 10) {
+        status.className = 'smart-status err';
+        status.textContent = 'Paste a bit more detail first.';
+        return;
+      }
+
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'Reading…';
+      status.className = 'smart-status';
+      status.textContent = 'Asking the AI to read your stat block…';
+
+      try {
+        const resp = await fetch('/api/parse-monster', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, system: currentSystem }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          throw new Error(data && data.error ? data.error : `Request failed (${resp.status})`);
+        }
+
+        closeCustomStart();
+        openCustomMonsterModal();   // resets the form + syncs PF2e/5e fields
+        applySmartFields(data.fields);
+
+        const globalStatus = document.getElementById('status');
+        if (globalStatus) {
+          globalStatus.textContent = 'Form pre-filled by AI — review every field, then click Create.';
+        }
+      } catch (err) {
+        status.className = 'smart-status err';
+        status.textContent = 'Could not parse that: ' + (err && err.message ? err.message : err);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    }
+
     function openCustomMonsterModal() {
       resetCustomForm();
       syncCustomFormToSystem();
@@ -3806,6 +4020,10 @@
     document.getElementById('customMonsterClose').addEventListener('click', closeCustomMonsterModal);
     document.getElementById('customMonsterModal').addEventListener('click', (e) => {
       if (e.target.id === 'customMonsterModal') closeCustomMonsterModal();
+    });
+
+    document.getElementById('customStartModal').addEventListener('click', (e) => {
+      if (e.target.id === 'customStartModal') closeCustomStart();
     });
 
     // Set up input event listeners

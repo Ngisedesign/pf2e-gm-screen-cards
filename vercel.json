@@ -20,9 +20,17 @@
     {
       "src": "api/family.js",
       "use": "@vercel/node"
+    },
+    {
+      "src": "api/parse-monster.js",
+      "use": "@vercel/node"
     }
   ],
   "routes": [
+    {
+      "src": "/api/parse-monster",
+      "dest": "/api/parse-monster.js"
+    },
     {
       "src": "/api/search-5e(.*)",
       "dest": "/api/search-5e.js"
