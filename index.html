@@ -1355,12 +1355,169 @@
         print-color-adjust: exact !important;
       }
     }
+
+    /* ===================== Standee Mode ===================== */
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin: 0 0 14px;
+    }
+    .mode-toggle button {
+      padding: 8px 20px;
+      border: 1px solid #c9b896;
+      background: #fff;
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #5a4632;
+      font-size: 14px;
+    }
+    .mode-toggle button.active {
+      background: #7a1f1f;
+      color: #fff;
+      border-color: #7a1f1f;
+    }
+
+    .standee-section {
+      display: none;
+      max-width: 820px;
+      margin: 0 auto 40px;
+      padding: 28px;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.08);
+    }
+    body.mode-standee .standee-section { display: block; }
+    body.mode-standee .input-section,
+    body.mode-standee #printPreview,
+    body.mode-standee .system-toggle { display: none !important; }
+    body.mode-cards .standee-print { display: none; }
+
+    .standee-dropzone {
+      border: 2px dashed #c9b896;
+      border-radius: 12px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      color: #8a7a5c;
+      transition: .15s;
+    }
+    .standee-dropzone.dragover,
+    .standee-dropzone:hover {
+      border-color: #7a1f1f;
+      background: #faf5ee;
+    }
+    .standee-dropzone p { margin: 6px 0; }
+    .standee-dropzone img.preview-thumb {
+      max-height: 180px;
+      max-width: 100%;
+      border-radius: 8px;
+    }
+    .standee-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 22px;
+      align-items: flex-end;
+      margin-top: 22px;
+    }
+    .standee-field label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #8a7a5c;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .standee-field input {
+      padding: 9px;
+      border: 1px solid #c9b896;
+      border-radius: 8px;
+      width: 90px;
+      font-size: 14px;
+    }
+    .standee-size-group { display: flex; gap: 8px; }
+    .standee-size-group button {
+      padding: 9px 16px;
+      border: 1px solid #c9b896;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      color: #5a4632;
+    }
+    .standee-size-group button.active {
+      background: #7a1f1f;
+      color: #fff;
+      border-color: #7a1f1f;
+    }
+    .standee-preview-wrap { margin-top: 26px; text-align: center; }
+    .standee-preview-meta { font-size: 13px; color: #8a7a5c; margin-bottom: 14px; }
+
+    /* a single fold-over standee (sized in real inches via inline styles) */
+    .standee {
+      display: inline-flex;
+      flex-direction: column;
+      box-sizing: border-box;
+      border: 1px solid #000;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .standee .panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #fff;
+    }
+    .standee .panel img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .standee .panel.back img { transform: scaleY(-1); }
+    .standee .fold {
+      border-top: 1px dashed #999;
+      height: 0;
+      line-height: 0;
+      font-size: 0;
+    }
+
+    .standee-print { display: none; }
+    .standee-print .sheet {
+      display: flex;
+      flex-wrap: wrap;
+      align-content: flex-start;
+      gap: 0.2in;
+    }
+
+    @media print {
+      body.mode-standee .standee-section,
+      body.mode-standee .app-header,
+      body.mode-standee .mode-toggle { display: none !important; }
+      body.mode-standee .standee-print { display: block !important; }
+      body.mode-cards .standee-print { display: none !important; }
+      .standee-print .standee {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+    }
   </style>
+  <style id="dynamicPageStyle"></style>
 </head>
 <body>
   <header class="app-header">
     <h1 id="appTitle">PF2e GM Screen Cards</h1>
     <p id="appSubtitle">Generate printable monster cards for your GM screen from Archives of Nethys</p>
+    <div class="mode-toggle">
+      <button id="modeCards" class="active" onclick="setMode('cards')">🃏 Cards</button>
+      <button id="modeStandee" onclick="setMode('standee')">🧍 Standees</button>
+    </div>
     <div class="system-toggle">
       <button id="togglePf2e" class="active" onclick="setSystem('pf2e')">Pathfinder 2e</button>
       <button id="toggleDnd5e" onclick="setSystem('dnd5e')">D&D 5e</button>
@@ -1412,6 +1569,48 @@
     </div>
   </section>
 
+  <section class="standee-section">
+    <div class="standee-dropzone" id="standeeDropzone">
+      <div id="standeeDropInner">
+        <div style="font-size:40px">🖼️</div>
+        <p><strong>Drop an image here</strong> or click to choose</p>
+        <p style="font-size:12px">A transparent PNG looks cleanest, but any image works.</p>
+      </div>
+    </div>
+    <input type="file" id="standeeFileInput" accept="image/*" style="display:none" />
+
+    <div class="standee-options">
+      <div class="standee-field">
+        <label>Pawn size</label>
+        <div class="standee-size-group">
+          <button type="button" data-size="medium" class="active" onclick="setStandeeSize('medium')">Medium (1″)</button>
+          <button type="button" data-size="large" onclick="setStandeeSize('large')">Large (2″)</button>
+        </div>
+      </div>
+      <div class="standee-field">
+        <label for="standeeCount">Copies</label>
+        <input type="number" id="standeeCount" min="1" max="60" value="1" />
+      </div>
+      <button class="btn-primary" id="standeePrintBtn" onclick="printStandees()" disabled>Print Standees</button>
+    </div>
+
+    <div class="standee-preview-wrap">
+      <div class="standee-preview-meta" id="standeePreviewMeta"></div>
+      <div id="standeePreviewInner"></div>
+    </div>
+
+    <div class="help-text" style="margin-top:24px">
+      <h3>How to use</h3>
+      <ol>
+        <li>Upload character or monster art (a transparent PNG looks cleanest)</li>
+        <li>Pick Medium (1″ base) or Large (2″ base)</li>
+        <li>Set how many copies you want, then Print on <strong>letter</strong> paper at <strong>100% scale</strong> (turn off "fit to page")</li>
+        <li>Cut out the strip and fold along the dashed line at the top — the two halves become the front and back</li>
+        <li>Slip a generic standee/stiffener inside the fold for rigidity, then drop it into a base</li>
+      </ol>
+    </div>
+  </section>
+
   <div id="status" class="status"></div>
 
   <section class="print-preview" id="printPreview" style="display: none;">
@@ -1421,6 +1620,10 @@
     </div>
     <div id="pages"></div>
   </section>
+
+  <div class="standee-print" id="standeePrint">
+    <div class="sheet"></div>
+  </div>
 
   <div id="customStartModal" class="custom-monster-modal">
     <div class="custom-monster-panel" style="width: min(560px, 100%);">
@@ -4053,6 +4256,129 @@
       updateHelpText();
     }
 
+    // ===================== Standee Mode =====================
+    let currentMode = localStorage.getItem('gm-cards-mode') || 'cards';
+    let standeeImage = null;       // dataURL
+    let standeeImageDims = null;   // { w, h }
+    let standeeSize = 'medium';
+
+    const STANDEE_SIZES = {
+      medium: { label: 'Medium', widthIn: 1.0 },
+      large:  { label: 'Large',  widthIn: 2.0 },
+    };
+
+    function setMode(mode) {
+      currentMode = mode;
+      localStorage.setItem('gm-cards-mode', mode);
+      document.body.classList.toggle('mode-standee', mode === 'standee');
+      document.body.classList.toggle('mode-cards', mode === 'cards');
+      document.getElementById('modeCards').classList.toggle('active', mode === 'cards');
+      document.getElementById('modeStandee').classList.toggle('active', mode === 'standee');
+
+      // Standees print on letter; cards keep the legal page set in the static stylesheet.
+      document.getElementById('dynamicPageStyle').textContent =
+        mode === 'standee'
+          ? '@media print { @page { size: 8.5in 11in; margin: 0.35in; } }'
+          : '';
+
+      if (mode === 'standee') {
+        document.getElementById('appTitle').textContent = 'Standee Maker';
+        document.getElementById('appSubtitle').textContent =
+          'Upload art, pick a size, and print a fold-over standee for a generic base';
+      } else {
+        initializeSystem(); // restores card-mode title/subtitle for the current system
+      }
+    }
+
+    function setStandeeSize(size) {
+      standeeSize = size;
+      document.querySelectorAll('.standee-size-group button').forEach((b) =>
+        b.classList.toggle('active', b.dataset.size === size)
+      );
+      renderStandeePreview();
+    }
+
+    function handleStandeeFile(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        standeeImage = e.target.result;
+        const img = new Image();
+        img.onload = () => {
+          standeeImageDims = { w: img.naturalWidth, h: img.naturalHeight };
+          document.getElementById('standeeDropInner').innerHTML =
+            `<img class="preview-thumb" src="${standeeImage}" /><p style="font-size:12px;margin-top:8px">Click to replace</p>`;
+          renderStandeePreview();
+        };
+        img.src = standeeImage;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function buildStandeeEl() {
+      if (!standeeImage || !standeeImageDims) return null;
+      const widthIn = STANDEE_SIZES[standeeSize].widthIn;
+      const panelH = widthIn * (standeeImageDims.h / standeeImageDims.w);
+      const el = document.createElement('div');
+      el.className = 'standee';
+      el.style.width = widthIn + 'in';
+      el.innerHTML =
+        `<div class="panel back" style="height:${panelH}in"><img src="${standeeImage}" /></div>` +
+        `<div class="fold"></div>` +
+        `<div class="panel front" style="height:${panelH}in"><img src="${standeeImage}" /></div>`;
+      return el;
+    }
+
+    function renderStandeePreview() {
+      const inner = document.getElementById('standeePreviewInner');
+      const meta = document.getElementById('standeePreviewMeta');
+      const printBtn = document.getElementById('standeePrintBtn');
+      inner.innerHTML = '';
+      if (!standeeImage || !standeeImageDims) {
+        meta.textContent = '';
+        printBtn.disabled = true;
+        return;
+      }
+      const widthIn = STANDEE_SIZES[standeeSize].widthIn;
+      const panelH = widthIn * (standeeImageDims.h / standeeImageDims.w);
+      const totalH = (panelH * 2).toFixed(2);
+      meta.innerHTML =
+        `<strong>${STANDEE_SIZES[standeeSize].label}</strong> — ${widthIn}″ wide × ${panelH.toFixed(2)}″ tall figure. ` +
+        `Flat strip prints ${widthIn}″ × ${totalH}″ before folding.`;
+      const el = buildStandeeEl();
+      if (el) inner.appendChild(el);
+      printBtn.disabled = false;
+    }
+
+    function printStandees() {
+      if (!standeeImage) return;
+      const count = Math.max(1, Math.min(60, parseInt(document.getElementById('standeeCount').value, 10) || 1));
+      const sheet = document.querySelector('#standeePrint .sheet');
+      sheet.innerHTML = '';
+      for (let i = 0; i < count; i++) {
+        const el = buildStandeeEl();
+        if (el) sheet.appendChild(el);
+      }
+      window.print();
+    }
+
+    (function setupStandee() {
+      const dz = document.getElementById('standeeDropzone');
+      const fi = document.getElementById('standeeFileInput');
+      if (!dz || !fi) return;
+      dz.addEventListener('click', () => fi.click());
+      fi.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) handleStandeeFile(e.target.files[0]);
+      });
+      dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+      dz.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dz.classList.remove('dragover');
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) handleStandeeFile(e.dataTransfer.files[0]);
+      });
+    })();
+
     // Start with empty list
     initializeSystem();
     loadRecentMonsters();
@@ -4060,6 +4386,7 @@
     renderMonsterList();
     renderRecentMonsters();
     renderSavedCustoms();
+    setMode(currentMode);
   </script>
 </body>
 </html>
