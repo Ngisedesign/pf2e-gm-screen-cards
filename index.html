@@ -219,6 +219,26 @@
     }
     .card-mega .card-stats {
       padding: 0.5in;
+      /* Two-column flow so long abilities/attacks get twice the space */
+      display: block;
+      column-count: 2;
+      column-gap: 0.4in;
+      column-rule: 1px solid #ddd;
+    }
+    /* Header spans the full width above both columns */
+    .card-mega .card-stats .stats-header {
+      column-span: all;
+    }
+    /* Keep each block intact rather than splitting mid-item across columns */
+    .card-mega .card-stats .ability,
+    .card-mega .card-stats .stat-row,
+    .card-mega .card-stats .defense-row,
+    .card-mega .card-stats .skills-row,
+    .card-mega .card-stats .traits {
+      break-inside: avoid;
+    }
+    .card-mega .card-stats .attacks-section-title {
+      break-after: avoid;
     }
 
     /*
@@ -3293,22 +3313,28 @@
       if (!stats) return;
 
       const isMega = card.classList.contains('card-mega');
+      // Multi-column mega stats overflow horizontally (into a 3rd column), so
+      // check both dimensions, not just height.
+      const overflows = () =>
+        stats.scrollHeight > stats.clientHeight + 1 ||
+        stats.scrollWidth > stats.clientWidth + 1;
+
       let size = isMega ? 18 : 8;
       stats.style.fontSize = size + 'pt';
 
       // Shrink until everything fits
-      while (stats.scrollHeight > stats.clientHeight + 1 && size > 4) {
+      while (overflows() && size > 4) {
         size -= 0.25;
         stats.style.fontSize = size + 'pt';
       }
 
       // For mega cards, grow to fill the extra space if there's room left
       if (isMega) {
-        while (stats.scrollHeight <= stats.clientHeight && size < 30) {
+        while (!overflows() && size < 30) {
           size += 0.25;
           stats.style.fontSize = size + 'pt';
         }
-        if (stats.scrollHeight > stats.clientHeight + 1) {
+        if (overflows()) {
           size -= 0.25;
           stats.style.fontSize = size + 'pt';
         }
