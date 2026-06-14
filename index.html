@@ -1473,9 +1473,10 @@
       background: #fff;
     }
     .standee .panel img {
+      /* Panel is sized to the image's exact aspect ratio, so fill it directly. */
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: fill;
       display: block;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -4350,7 +4351,7 @@
       printBtn.disabled = false;
     }
 
-    function printStandees() {
+    async function printStandees() {
       if (!standeeImage) return;
       const count = Math.max(1, Math.min(60, parseInt(document.getElementById('standeeCount').value, 10) || 1));
       const sheet = document.querySelector('#standeePrint .sheet');
@@ -4359,6 +4360,13 @@
         const el = buildStandeeEl();
         if (el) sheet.appendChild(el);
       }
+      // The print container is display:none until @media print swaps it in, so
+      // its freshly-created <img>s may not have painted when window.print() fires
+      // — that prints empty boxes. Force every image to decode first.
+      const imgs = Array.from(sheet.querySelectorAll('img'));
+      await Promise.all(imgs.map((img) =>
+        (img.decode ? img.decode() : Promise.resolve()).catch(() => {})
+      ));
       window.print();
     }
 
