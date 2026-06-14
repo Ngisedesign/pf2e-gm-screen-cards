@@ -1357,27 +1357,85 @@
     }
 
     /* ===================== Standee Mode ===================== */
-    .mode-toggle {
-      display: flex;
-      gap: 8px;
-      justify-content: center;
-      margin: 0 0 14px;
-    }
-    .mode-toggle button {
-      padding: 8px 20px;
+    /* Hamburger menu (mode switcher) */
+    .menu-fab {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 1001;
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
       border: 1px solid #c9b896;
       background: #fff;
-      border-radius: 999px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.22);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .menu-fab-bars,
+    .menu-fab-bars::before,
+    .menu-fab-bars::after {
+      content: '';
+      display: block;
+      width: 20px;
+      height: 2px;
+      background: #5a4632;
+      border-radius: 2px;
+      transition: transform .2s ease, opacity .2s ease, background .2s ease;
+    }
+    .menu-fab-bars { position: relative; }
+    .menu-fab-bars::before { position: absolute; top: -6px; left: 0; }
+    .menu-fab-bars::after  { position: absolute; top: 6px;  left: 0; }
+    body.menu-open .menu-fab-bars { background: transparent; }
+    body.menu-open .menu-fab-bars::before { transform: translateY(6px) rotate(45deg); }
+    body.menu-open .menu-fab-bars::after  { transform: translateY(-6px) rotate(-45deg); }
+
+    .mode-menu {
+      position: fixed;
+      top: 68px;
+      left: 16px;
+      z-index: 1001;
+      background: #fff;
+      border: 1px solid #e6dcc6;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.20);
+      padding: 6px;
+      min-width: 190px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity .16s ease, transform .16s ease;
+    }
+    body.menu-open .mode-menu {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .mode-menu-label {
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #a89576;
+      padding: 6px 12px 2px;
+    }
+    .mode-menu-item {
+      text-align: left;
+      padding: 10px 14px;
+      border: none;
+      background: transparent;
+      border-radius: 8px;
       cursor: pointer;
       font-weight: 600;
       color: #5a4632;
-      font-size: 14px;
+      font-size: 15px;
     }
-    .mode-toggle button.active {
-      background: #7a1f1f;
-      color: #fff;
-      border-color: #7a1f1f;
-    }
+    .mode-menu-item:hover { background: #f3ece0; }
+    .mode-menu-item.active { background: #7a1f1f; color: #fff; }
 
     .standee-section {
       display: none;
@@ -1498,9 +1556,9 @@
     }
 
     @media print {
+      .menu-fab, .mode-menu { display: none !important; }
       body.mode-standee .standee-section,
-      body.mode-standee .app-header,
-      body.mode-standee .mode-toggle { display: none !important; }
+      body.mode-standee .app-header { display: none !important; }
       body.mode-standee .standee-print { display: block !important; }
       body.mode-cards .standee-print { display: none !important; }
       .standee-print .standee {
@@ -1512,13 +1570,18 @@
   <style id="dynamicPageStyle"></style>
 </head>
 <body>
+  <button class="menu-fab" id="menuToggle" aria-label="Open menu" aria-expanded="false" onclick="toggleModeMenu()">
+    <span class="menu-fab-bars"></span>
+  </button>
+  <nav class="mode-menu" id="modeMenu" aria-hidden="true">
+    <div class="mode-menu-label">Mode</div>
+    <button id="modeCards" class="mode-menu-item active" onclick="setMode('cards')">🃏 Cards</button>
+    <button id="modeStandee" class="mode-menu-item" onclick="setMode('standee')">🧍 Standees</button>
+  </nav>
+
   <header class="app-header">
     <h1 id="appTitle">PF2e GM Screen Cards</h1>
     <p id="appSubtitle">Generate printable monster cards for your GM screen from Archives of Nethys</p>
-    <div class="mode-toggle">
-      <button id="modeCards" class="active" onclick="setMode('cards')">🃏 Cards</button>
-      <button id="modeStandee" onclick="setMode('standee')">🧍 Standees</button>
-    </div>
     <div class="system-toggle">
       <button id="togglePf2e" class="active" onclick="setSystem('pf2e')">Pathfinder 2e</button>
       <button id="toggleDnd5e" onclick="setSystem('dnd5e')">D&D 5e</button>
@@ -4289,7 +4352,31 @@
       } else {
         initializeSystem(); // restores card-mode title/subtitle for the current system
       }
+
+      toggleModeMenu(false); // collapse the hamburger menu after a selection
     }
+
+    function toggleModeMenu(force) {
+      const open = typeof force === 'boolean'
+        ? force
+        : !document.body.classList.contains('menu-open');
+      document.body.classList.toggle('menu-open', open);
+      const t = document.getElementById('menuToggle');
+      const m = document.getElementById('modeMenu');
+      if (t) { t.setAttribute('aria-expanded', String(open)); t.setAttribute('aria-label', open ? 'Close menu' : 'Open menu'); }
+      if (m) m.setAttribute('aria-hidden', String(!open));
+    }
+
+    // Close the menu when clicking outside it
+    document.addEventListener('click', (e) => {
+      if (!document.body.classList.contains('menu-open')) return;
+      if (e.target.closest('#modeMenu') || e.target.closest('#menuToggle')) return;
+      toggleModeMenu(false);
+    });
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') toggleModeMenu(false);
+    });
 
     function setStandeeSize(size) {
       standeeSize = size;
