@@ -508,6 +508,40 @@
       margin-top: 0.2rem;
     }
 
+    .form-subhead {
+      font-size: 0.78rem;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0.4rem 0 0.4rem;
+    }
+
+    .form-subhead .form-hint-inline {
+      text-transform: none;
+      letter-spacing: 0;
+      color: #666;
+      font-size: 0.72rem;
+    }
+
+    .ability-score-row {
+      gap: 0.4rem;
+    }
+
+    .ability-score-row .form-field {
+      margin-bottom: 0.4rem;
+    }
+
+    .ability-score-row .form-field label {
+      text-align: center;
+      font-size: 0.72rem;
+      letter-spacing: 0.5px;
+    }
+
+    .ability-score-row .form-field input {
+      padding: 0.4rem 0.2rem;
+      text-align: center;
+    }
+
     .custom-monster-footer {
       padding: 1rem 1.25rem;
       border-top: 1px solid #333;
@@ -1264,9 +1298,13 @@
             <input type="text" id="customName" required placeholder="e.g. Ancient Horned Dragon" />
           </div>
           <div class="form-row">
-            <div class="form-field">
+            <div class="form-field" id="customLevelField">
               <label for="customLevel">Level</label>
               <input type="number" id="customLevel" min="0" max="30" value="1" />
+            </div>
+            <div class="form-field" id="customCrField" style="display:none">
+              <label for="customCr">CR</label>
+              <input type="text" id="customCr" placeholder="e.g. 1/2, 5, 17" />
             </div>
             <div class="form-field">
               <label for="customType">Type</label>
@@ -1291,7 +1329,7 @@
               <input type="text" id="customAc" placeholder="36" />
             </div>
           </div>
-          <div class="form-row">
+          <div class="form-row" id="pf2eSavesRow">
             <div class="form-field">
               <label for="customFort">Fort</label>
               <input type="text" id="customFort" placeholder="+24" />
@@ -1303,6 +1341,27 @@
             <div class="form-field">
               <label for="customWill">Will</label>
               <input type="text" id="customWill" placeholder="+24" />
+            </div>
+          </div>
+
+          <div id="fiveSavesBlock" style="display:none">
+            <div class="form-subhead">Ability Scores</div>
+            <div class="form-row ability-score-row">
+              <div class="form-field"><label for="customStr">STR</label><input type="number" id="customStr" min="1" max="30" placeholder="10" /></div>
+              <div class="form-field"><label for="customDex">DEX</label><input type="number" id="customDex" min="1" max="30" placeholder="10" /></div>
+              <div class="form-field"><label for="customCon">CON</label><input type="number" id="customCon" min="1" max="30" placeholder="10" /></div>
+              <div class="form-field"><label for="customInt">INT</label><input type="number" id="customInt" min="1" max="30" placeholder="10" /></div>
+              <div class="form-field"><label for="customWis">WIS</label><input type="number" id="customWis" min="1" max="30" placeholder="10" /></div>
+              <div class="form-field"><label for="customCha">CHA</label><input type="number" id="customCha" min="1" max="30" placeholder="10" /></div>
+            </div>
+            <div class="form-subhead">Saving Throws <span class="form-hint-inline">(optional — blank uses the ability modifier)</span></div>
+            <div class="form-row ability-score-row">
+              <div class="form-field"><label for="customStrSave">STR</label><input type="text" id="customStrSave" placeholder="+0" /></div>
+              <div class="form-field"><label for="customDexSave">DEX</label><input type="text" id="customDexSave" placeholder="+0" /></div>
+              <div class="form-field"><label for="customConSave">CON</label><input type="text" id="customConSave" placeholder="+0" /></div>
+              <div class="form-field"><label for="customIntSave">INT</label><input type="text" id="customIntSave" placeholder="+0" /></div>
+              <div class="form-field"><label for="customWisSave">WIS</label><input type="text" id="customWisSave" placeholder="+0" /></div>
+              <div class="form-field"><label for="customChaSave">CHA</label><input type="text" id="customChaSave" placeholder="+0" /></div>
             </div>
           </div>
           <div class="form-field">
@@ -1329,6 +1388,10 @@
             <label for="customSkills">Skills</label>
             <input type="text" id="customSkills" placeholder="Perception +24, Athletics +27, Arcana +28" />
           </div>
+          <div class="form-field" id="customSensesField" style="display:none">
+            <label for="customSenses">Senses</label>
+            <input type="text" id="customSenses" placeholder="darkvision 120 ft., passive Perception 18" />
+          </div>
         </div>
 
         <div class="form-section">
@@ -1336,20 +1399,20 @@
           <div class="form-field">
             <label for="customAbilities">Ability text</label>
             <textarea id="customAbilities" placeholder="[2] Breath Weapon: 40-foot cone, 13d6 fire, DC 34&#10;[1] Grab: Automatic on claw hit&#10;[F] Attack of Opportunity: Trigger - creature leaves reach&#10;Aura of Flame: 10 ft. 2d6 fire damage to creatures ending turn"></textarea>
-            <div class="form-hint">One per line: [actions] Name: description — actions: [1], [2], [3], or [F] for free</div>
+            <div class="form-hint" id="abilitiesHint">One per line: [actions] Name: description — actions: [1], [2], [3], or [F] for free</div>
           </div>
         </div>
 
         <div class="form-section">
-          <h4>Strikes</h4>
+          <h4 id="strikesFormHeading">Strikes</h4>
           <div class="form-field">
             <label for="customAttacks">Attack lines</label>
             <textarea id="customAttacks" placeholder="Jaws, +27, 3d10+13 piercing, Melee&#10;Claw, +27, 3d6+13 slashing, Melee"></textarea>
-            <div class="form-hint">One per line: Name, bonus, damage, Melee/Ranged</div>
+            <div class="form-hint" id="strikesHint">One per line: Name, bonus, damage, Melee/Ranged</div>
           </div>
         </div>
 
-        <div class="form-section">
+        <div class="form-section" id="spellsFormSection">
           <h4>Spells</h4>
           <div class="form-field">
             <label for="customSpellTitle">Spell type</label>
@@ -2571,12 +2634,17 @@
         return;
       }
 
-      list.innerHTML = savedCustoms.map((m, i) => `
+      list.innerHTML = savedCustoms.map((m, i) => {
+        const is5e = m.customData?.system === 'dnd5e';
+        const badge = is5e
+          ? (m.customData?.cr != null ? ` <span style="color:#888">CR ${escapeHtml(String(m.customData.cr))}</span>` : '')
+          : (m.level != null ? ` <span style="color:#888">Lv ${m.level}</span>` : '');
+        return `
         <span class="recent-tag" onclick="addSavedCustomToQueue(${i})" title="Add to card list">
-          ${escapeHtml(m.name)}${m.level != null ? ` <span style="color:#888">Lv ${m.level}</span>` : ''}
+          ${escapeHtml(m.name)}${badge}
           <span class="remove" onclick="removeSavedCustom(event, ${i})" title="Remove from saved">×</span>
-        </span>
-      `).join('');
+        </span>`;
+      }).join('');
     }
 
     function addSavedCustomToQueue(index) {
@@ -2594,7 +2662,47 @@
       renderSavedCustoms();
     }
 
+    // Show/hide PF2e vs 5e fields in the custom monster form
+    function syncCustomFormToSystem() {
+      const is5e = currentSystem === 'dnd5e';
+      const show = (id, visible) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+      };
+
+      // Identity: Level (PF2e) vs CR (5e)
+      show('customLevelField', !is5e);
+      show('customCrField', is5e);
+
+      // Saves: Fort/Ref/Will (PF2e) vs ability scores + saving throws (5e)
+      show('pf2eSavesRow', !is5e);
+      show('fiveSavesBlock', is5e);
+
+      // 5e-only senses
+      show('customSensesField', is5e);
+
+      // Spells block isn't rendered on 5e cards yet — hide it there
+      show('spellsFormSection', !is5e);
+
+      // Context-sensitive hints
+      const abilitiesHint = document.getElementById('abilitiesHint');
+      if (abilitiesHint) {
+        abilitiesHint.textContent = is5e
+          ? 'One per line: [type] Name: description — type: [A] action, [B] bonus, [R] reaction, [L] legendary, or none for a passive trait'
+          : 'One per line: [actions] Name: description — actions: [1], [2], [3], or [F] for free';
+      }
+      const strikesHeading = document.getElementById('strikesFormHeading');
+      const strikesHint = document.getElementById('strikesHint');
+      if (strikesHeading) strikesHeading.textContent = is5e ? 'Attacks' : 'Strikes';
+      if (strikesHint) {
+        strikesHint.textContent = is5e
+          ? 'One per line: Name, bonus, damage, Melee/Ranged — shown under Actions on the card'
+          : 'One per line: Name, bonus, damage, Melee/Ranged';
+      }
+    }
+
     function openCustomMonsterModal() {
+      syncCustomFormToSystem();
       document.getElementById('customMonsterModal').classList.add('visible');
       document.getElementById('customName').focus();
     }
@@ -2703,7 +2811,99 @@
       };
     }
 
+    // Parse abilities for 5e, mapping a leading [A]/[B]/[R]/[L] to an action type
+    function parseCustom5eAbilities(text) {
+      return text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          let actionType = null;
+          let workingLine = line;
+          const typeMatch = workingLine.match(/^\[([ABRL])\]\s*/i);
+          if (typeMatch) {
+            const map = { A: 'action', B: 'bonus', R: 'reaction', L: 'legendary' };
+            actionType = map[typeMatch[1].toUpperCase()];
+            workingLine = workingLine.slice(typeMatch[0].length);
+          }
+          const colon = workingLine.indexOf(':');
+          if (colon === -1) return { name: workingLine, desc: '', actionType };
+          return {
+            name: workingLine.slice(0, colon).trim(),
+            desc: workingLine.slice(colon + 1).trim(),
+            actionType,
+          };
+        });
+    }
+
+    function build5eCustomMonsterFromForm() {
+      const num = (id) => {
+        const v = document.getElementById(id).value.trim();
+        return v === '' ? null : parseInt(v, 10);
+      };
+      const saveOrMod = (saveId, score) => {
+        const raw = document.getElementById(saveId).value.trim();
+        return raw ? formatSaveValue(raw) : formatAbilityMod(score);
+      };
+
+      const str = num('customStr'), dex = num('customDex'), con = num('customCon');
+      const int = num('customInt'), wis = num('customWis'), cha = num('customCha');
+
+      const immunities = document.getElementById('customImmunities').value.trim();
+      const resistances = document.getElementById('customResistances').value.trim();
+      const weaknesses = document.getElementById('customWeaknesses').value.trim();
+      const defenses = [];
+      if (immunities) defenses.push({ label: 'Immunities', text: immunities });
+      if (resistances) defenses.push({ label: 'Resistances', text: resistances });
+      if (weaknesses) defenses.push({ label: 'Vulnerabilities', text: weaknesses });
+
+      const traits = document.getElementById('customTraits').value
+        .split(',').map((t) => t.trim()).filter(Boolean);
+
+      // Abilities + attacks (5e cards render attacks inside the Actions block)
+      const abilities = parseCustom5eAbilities(document.getElementById('customAbilities').value);
+      const attacks = parseCustomAttacks(document.getElementById('customAttacks').value);
+      for (const atk of attacks) {
+        const reach = atk.reach ? ` (${atk.reach})` : '';
+        abilities.push({
+          name: atk.name,
+          desc: `${atk.bonus} to hit${atk.damage ? `, ${atk.damage}` : ''}${reach}`.trim(),
+          actionType: 'action',
+        });
+      }
+
+      const cr = document.getElementById('customCr').value.trim() || '?';
+
+      return {
+        id: `custom-${Date.now()}`,
+        name: document.getElementById('customName').value.trim(),
+        system: 'dnd5e',
+        cr,
+        level: cr,
+        type: document.getElementById('customType').value.trim() || 'Creature',
+        traits,
+        image: null,
+        hp: document.getElementById('customHp').value.trim() || '?',
+        ac: document.getElementById('customAc').value.trim() || '?',
+        strSave: saveOrMod('customStrSave', str),
+        dexSave: saveOrMod('customDexSave', dex),
+        conSave: saveOrMod('customConSave', con),
+        intSave: saveOrMod('customIntSave', int),
+        wisSave: saveOrMod('customWisSave', wis),
+        chaSave: saveOrMod('customChaSave', cha),
+        str, dex, con, int, wis, cha,
+        speed: document.getElementById('customSpeed').value.trim() || '?',
+        skills: document.getElementById('customSkills').value.trim(),
+        senses: document.getElementById('customSenses').value.trim(),
+        defenses,
+        spells: null,
+        abilities,
+        attacks,
+      };
+    }
+
     function buildCustomMonsterFromForm() {
+      if (currentSystem === 'dnd5e') return build5eCustomMonsterFromForm();
       const immunities = document.getElementById('customImmunities').value.trim();
       const resistances = document.getElementById('customResistances').value.trim();
       const weaknesses = document.getElementById('customWeaknesses').value.trim();
