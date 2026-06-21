@@ -1529,12 +1529,14 @@
       justify-content: center;
       overflow: hidden;
       background: #fff;
+      box-sizing: border-box;
     }
     .standee .panel img {
-      /* Panel is sized to the image's exact aspect ratio, so fill it directly. */
+      /* Panel content area matches the image aspect; contain keeps it undistorted
+         while any vertical padding becomes whitespace above/below the figure. */
       width: 100%;
       height: 100%;
-      object-fit: fill;
+      object-fit: contain;
       display: block;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -1650,6 +1652,10 @@
           <button type="button" data-size="medium" class="active" onclick="setStandeeSize('medium')">Medium (1″)</button>
           <button type="button" data-size="large" onclick="setStandeeSize('large')">Large (2″)</button>
         </div>
+      </div>
+      <div class="standee-field">
+        <label for="standeePad">Whitespace above &amp; below image (in)</label>
+        <input type="number" id="standeePad" min="0" max="2" step="0.05" value="0" oninput="setStandeePad(this.value)" />
       </div>
       <div class="standee-field">
         <label for="standeeCount">Copies</label>
@@ -4325,6 +4331,7 @@
     let standeeImage = null;       // dataURL
     let standeeImageDims = null;   // { w, h }
     let standeeSize = 'medium';
+    let standeePad = parseFloat(localStorage.getItem('gm-cards-standee-pad')) || 0; // inches, above & below image
 
     const STANDEE_SIZES = {
       medium: { label: 'Medium', widthIn: 1.0 },
@@ -4386,6 +4393,15 @@
       renderStandeePreview();
     }
 
+    function setStandeePad(value) {
+      let pad = parseFloat(value);
+      if (!isFinite(pad) || pad < 0) pad = 0;
+      if (pad > 2) pad = 2;
+      standeePad = pad;
+      localStorage.setItem('gm-cards-standee-pad', String(pad));
+      renderStandeePreview();
+    }
+
     function handleStandeeFile(file) {
       if (!file || !file.type.startsWith('image/')) return;
       const reader = new FileReader();
@@ -4406,14 +4422,16 @@
     function buildStandeeEl() {
       if (!standeeImage || !standeeImageDims) return null;
       const widthIn = STANDEE_SIZES[standeeSize].widthIn;
-      const panelH = widthIn * (standeeImageDims.h / standeeImageDims.w);
+      const imgH = widthIn * (standeeImageDims.h / standeeImageDims.w);
+      const panelH = imgH + standeePad * 2; // padding adds whitespace above & below the figure
+      const padStyle = `height:${panelH}in;padding:${standeePad}in 0`;
       const el = document.createElement('div');
       el.className = 'standee';
       el.style.width = widthIn + 'in';
       el.innerHTML =
-        `<div class="panel back" style="height:${panelH}in"><img src="${standeeImage}" /></div>` +
+        `<div class="panel back" style="${padStyle}"><img src="${standeeImage}" /></div>` +
         `<div class="fold"></div>` +
-        `<div class="panel front" style="height:${panelH}in"><img src="${standeeImage}" /></div>`;
+        `<div class="panel front" style="${padStyle}"><img src="${standeeImage}" /></div>`;
       return el;
     }
 
@@ -4428,10 +4446,12 @@
         return;
       }
       const widthIn = STANDEE_SIZES[standeeSize].widthIn;
-      const panelH = widthIn * (standeeImageDims.h / standeeImageDims.w);
+      const imgH = widthIn * (standeeImageDims.h / standeeImageDims.w);
+      const panelH = imgH + standeePad * 2;
       const totalH = (panelH * 2).toFixed(2);
+      const padNote = standeePad > 0 ? ` + ${standeePad.toFixed(2)}″ whitespace above & below` : '';
       meta.innerHTML =
-        `<strong>${STANDEE_SIZES[standeeSize].label}</strong> — ${widthIn}″ wide × ${panelH.toFixed(2)}″ tall figure. ` +
+        `<strong>${STANDEE_SIZES[standeeSize].label}</strong> — ${widthIn}″ wide × ${imgH.toFixed(2)}″ tall figure${padNote}. ` +
         `Flat strip prints ${widthIn}″ × ${totalH}″ before folding.`;
       const el = buildStandeeEl();
       if (el) inner.appendChild(el);
@@ -4460,6 +4480,8 @@
     (function setupStandee() {
       const dz = document.getElementById('standeeDropzone');
       const fi = document.getElementById('standeeFileInput');
+      const padInput = document.getElementById('standeePad');
+      if (padInput) padInput.value = String(standeePad);
       if (!dz || !fi) return;
       dz.addEventListener('click', () => fi.click());
       fi.addEventListener('change', (e) => {
